@@ -91,7 +91,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       const SizedBox(width: 8),
                       LangToggle(game: game),
                       const Spacer(),
-                      const CheckerSquares(size: 12),
+                      const ShapeAccent(size: 12),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -340,7 +340,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                   children: [
                     SquareButton(onTap: () => Navigator.of(context).pop(), child: const Icon(Icons.arrow_back, textDirection: TextDirection.ltr)),
                     const Spacer(),
-                    const CheckerSquares(size: 12),
+                    const ShapeAccent(size: 12),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -421,6 +421,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
     final d = _drafts[rank]!;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias, // مربع الرقم يمشي مع الزوايا المدوّرة
       decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(3, 3)),
       child: Theme(
         // نشيل الخطوط اللي ExpansionTile بيحطها فوق وتحت

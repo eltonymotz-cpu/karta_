@@ -181,7 +181,7 @@ class _TopBar extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const HazardStripes(height: 10),
+              const ShapesStrip(height: 10),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: Headline(game.t(UiText.history), size: 28),

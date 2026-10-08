@@ -70,8 +70,8 @@ final ThemeData _theme = ThemeData(
       TargetPlatform.macOS: FadeForwardsPageTransitionsBuilder(),
     },
   ),
-  // خط Cairo بيدعم العربي والإنجليزي
-  textTheme: GoogleFonts.cairoTextTheme(ThemeData.light().textTheme).apply(
+  // خط Baloo Bhaijaan 2: مدوّر ومرح وبيدعم العربي والإنجليزي
+  textTheme: GoogleFonts.balooBhaijaan2TextTheme(ThemeData.light().textTheme).apply(
     bodyColor: AppColors.ink,
     displayColor: AppColors.ink,
   ),

@@ -36,7 +36,7 @@ class ResultsScreen extends StatelessWidget {
                       children: [
                         Row(
                           textDirection: TextDirection.ltr,
-                          children: [LangToggle(game: game), const Spacer(), const CheckerSquares(size: 12)],
+                          children: [LangToggle(game: game), const Spacer(), const ShapeAccent(size: 12)],
                         ),
                         const SizedBox(height: 20),
                         Row(
@@ -89,7 +89,7 @@ class ResultsScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const HazardStripes(height: 16),
+              const ShapesStrip(height: 16),
             ],
           ),
         ),
@@ -103,6 +103,7 @@ class ResultsScreen extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
+      clipBehavior: Clip.antiAlias, // الخانات الملونة تمشي مع الزوايا المدوّرة
       decoration: Brutal.box(
         color: isWinner ? AppColors.yellow : AppColors.paper,
         shadowColor: isLoser ? AppColors.red : AppColors.ink,

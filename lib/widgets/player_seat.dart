@@ -1,5 +1,5 @@
 // =================================================================
-// مقعد اللاعب: الاسم + صندوق صغير فيه عدد كروته
+// مقعد اللاعب: دايرة بلونه + الاسم + شارة صغيرة فيها عدد كروته
 // -----------------------------------------------------------------
 // المقاعد بتتلف حوالين الكارت على أطراف الشاشة.
 // - صاحب الدور: المقعد أصفر + كلمة "دورك"
@@ -33,18 +33,19 @@ class PlayerSeat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // أول حرف من الاسم يظهر في المربع الملوّن
+    // أول حرف من الاسم يظهر في الدايرة الملوّنة
     final initial = player.name.isEmpty ? '?' : player.name.characters.first.toUpperCase();
 
     final avatar = Container(
-      width: 26,
-      height: 26,
+      width: 28,
+      height: 28,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: player.color,
+        shape: BoxShape.circle,
         border: Border.all(color: AppColors.ink, width: 2),
       ),
-      child: Text(initial, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.ink)),
+      child: Text(initial, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.ink)),
     );
 
     final name = Text(
@@ -52,30 +53,32 @@ class PlayerSeat extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       textAlign: TextAlign.center,
-      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.ink, height: 1.2),
+      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.ink, height: 1.2),
     );
 
-    // صندوق عدد الكروت: مربع أسود والرقم أصفر
+    // شارة عدد الكروت: زي شارة "15 Stars" في التصميم
     final count = player.cards.length;
     final scoreBox = Container(
-      constraints: const BoxConstraints(minWidth: 26),
-      height: 26,
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      alignment: Alignment.center,
-      color: AppColors.ink,
-      child: Text(
-        '$count',
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w900,
-          color: count > 0 ? AppColors.yellow : Colors.white54,
-        ),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+      decoration: BoxDecoration(
+        color: count > 0 ? AppColors.sky : AppColors.paper,
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: AppColors.ink, width: 1.6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        textDirection: TextDirection.ltr,
+        children: [
+          const Text('🃏', style: TextStyle(fontSize: 10)),
+          const SizedBox(width: 3),
+          Text('$count', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.ink)),
+        ],
       ),
     );
 
     final turnTag = Text(
-      turnLabel.toUpperCase(),
-      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.ink, height: 1.1),
+      turnLabel,
+      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.red, height: 1.1),
     );
 
     // ترتيب المحتوى: رأسي لما المساحة ضيقة، أفقي لما فيه مساحة
@@ -117,10 +120,12 @@ class PlayerSeat extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: EdgeInsets.symmetric(horizontal: vertical ? 5 : 7, vertical: 6),
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              padding: EdgeInsets.symmetric(horizontal: vertical ? 6 : 8, vertical: 6),
               decoration: Brutal.box(
                 color: isCurrent ? AppColors.yellow : AppColors.paper,
+                radius: 16,
                 shadowOffset: clickable ? const Offset(4, 4) : const Offset(3, 3),
                 shadowColor: clickable ? AppColors.red : AppColors.ink,
               ),

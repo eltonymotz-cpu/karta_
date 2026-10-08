@@ -103,7 +103,7 @@ class _SetupScreenState extends State<SetupScreen> {
                                     style: const TextStyle(color: AppColors.yellow, fontSize: 11, fontWeight: FontWeight.w900)),
                               )
                             else
-                              const CheckerSquares(size: 12),
+                              const ShapeAccent(size: 12),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -133,7 +133,7 @@ class _SetupScreenState extends State<SetupScreen> {
                 ),
               ),
               // شريط التحذير في آخر الشاشة
-              const HazardStripes(height: 16),
+              const ShapesStrip(height: 16),
             ],
           ),
         ),
@@ -179,6 +179,7 @@ class _SetupScreenState extends State<SetupScreen> {
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         height: 60,
+        clipBehavior: Clip.antiAlias, // مربع الرقم يمشي مع الزوايا المدوّرة
         decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(3, 3)),
         child: Row(
           children: [

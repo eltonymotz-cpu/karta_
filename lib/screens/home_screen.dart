@@ -124,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Row(
                           textDirection: TextDirection.ltr,
-                          children: [LangToggle(game: game), const Spacer(), const CheckerSquares(size: 12)],
+                          children: [LangToggle(game: game), const Spacer(), const ShapeAccent(size: 12)],
                         ),
                         const SizedBox(height: 16),
                         // اللوجو (ومدخل الأدمن المخفي)
@@ -165,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              const HazardStripes(height: 16),
+              const ShapesStrip(height: 16),
             ],
           ),
         ),
@@ -194,14 +194,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.all(14),
                   child: Row(
                     children: [
+                      // الإيموجي في دايرة (زي صور البروفايل في التصميم)
                       Container(
                         width: 52,
                         height: 52,
                         alignment: Alignment.center,
-                        decoration: Brutal.box(
+                        decoration: BoxDecoration(
                           color: color == AppColors.yellow ? AppColors.paper : AppColors.yellow,
-                          borderWidth: 2,
-                          shadowOffset: Offset.zero,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.ink, width: 2),
                         ),
                         child: FittedBox(child: Padding(padding: const EdgeInsets.all(6), child: Text(emoji, style: const TextStyle(fontSize: 24)))),
                       ),
@@ -220,10 +221,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              Container(
-                width: 50,
-                color: AppColors.ink,
-                child: const Icon(Icons.arrow_forward, color: Colors.white), // بيتقلب لوحده في العربي
+              // سهم في دايرة سودا
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  margin: const EdgeInsetsDirectional.only(end: 14),
+                  decoration: const BoxDecoration(color: AppColors.ink, shape: BoxShape.circle),
+                  // arrow_forward بيتقلب لوحده في العربي
+                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22),
+                ),
               ),
             ],
           ),
