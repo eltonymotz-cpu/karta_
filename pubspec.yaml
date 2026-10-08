@@ -1,0 +1,33 @@
+name: karta
+description: "كارتة - لعبة كروت جماعية على موبايل واحد في النص"
+publish_to: 'none'
+
+# رقم الإصدار: 1.0.0 هو اسم الإصدار، و +1 هو رقم البناء
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+# المكتبات الخارجية التي يستخدمها المشروع
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  audioplayers: ^6.8.1    # تشغيل ملفات الأصوات (بطة، زمارة، بوم...)
+  google_fonts: ^8.2.1    # خط "Cairo" العربي
+  supabase_flutter: ^2.18.0
+  qr_flutter: ^4.1.0
+  shared_preferences: ^2.5.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # الملفات المرفقة مع التطبيق (الصور والأصوات)
+  assets:
+    - assets/images/
+    - assets/sounds/
