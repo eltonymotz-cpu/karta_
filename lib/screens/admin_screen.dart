@@ -36,7 +36,9 @@ class _AdminScreenState extends State<AdminScreen> {
     if (mounted) setState(() {}); // نحدّث القائمة بعد الرجوع
   }
 
+  /// مسح نمط جديد، أو ترجيع نمط أساسي لأصله (بمسح تعديل الأدمن عليه)
   Future<void> _delete(String id) async {
+    final resetting = isBuiltIn(id);
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => Dialog(
@@ -48,9 +50,13 @@ class _AdminScreenState extends State<AdminScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Headline(game.t(UiText.deleteConfirm), size: 22),
+              Headline(game.t(resetting ? UiText.resetConfirm : UiText.deleteConfirm), size: 22),
               const SizedBox(height: 18),
-              BrutalButton(label: game.t(UiText.delete), color: AppColors.red, onTap: () => Navigator.pop(context, true)),
+              BrutalButton(
+                label: game.t(resetting ? UiText.reset : UiText.delete),
+                color: AppColors.red,
+                onTap: () => Navigator.pop(context, true),
+              ),
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
                 child: Text(game.t(UiText.no), style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w900)),
@@ -62,7 +68,7 @@ class _AdminScreenState extends State<AdminScreen> {
     );
     if (yes != true) return;
     await ModeStore.delete(id);
-    if (game.modeId == id) game.setMode('classic');
+    if (game.modeId == id && !resetting) game.setMode('classic');
     if (mounted) setState(() {});
   }
 
@@ -101,14 +107,15 @@ class _AdminScreenState extends State<AdminScreen> {
                   BrutalButton(label: '+ ${game.t(UiText.newMode)}', onTap: () => _openEditor(null)),
                   const SizedBox(height: 24),
                   // الأنماط اللي الأدمن ضافها
-                  if (customModes.isEmpty)
+                  if (!customModes.keys.any((id) => !isBuiltIn(id)))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: Text(game.t(UiText.noCustomModes), style: const TextStyle(color: AppColors.muted)),
                     ),
-                  for (final entry in customModes.entries) _modeRow(entry.key, entry.value, editable: true),
-                  // الأنماط الأساسية (مش بتتعدل)
-                  for (final entry in builtInModes.entries) _modeRow(entry.key, entry.value, editable: false),
+                  for (final entry in customModes.entries)
+                    if (!isBuiltIn(entry.key)) _modeRow(entry.key, entry.value),
+                  // الأنماط الأساسية (بتتعدل، ولو اتعدلت ينفع ترجعها لأصلها)
+                  for (final id in builtInModes.keys) _modeRow(id, allModes[id]!),
                 ],
               ),
             ),
@@ -118,7 +125,9 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  Widget _modeRow(String id, GameMode mode, {required bool editable}) {
+  Widget _modeRow(String id, GameMode mode) {
+    final builtIn = isBuiltIn(id);
+    final edited = isEdited(id);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(10),
@@ -140,18 +149,29 @@ class _AdminScreenState extends State<AdminScreen> {
                 Text(game.t(mode.name).toUpperCase(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
                 Text(game.t(mode.description), maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                // علامة "أساسي" أو "أساسي • معدّل"
+                if (builtIn)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    color: edited ? AppColors.red : AppColors.ink,
+                    child: Text(
+                      edited ? '${game.t(UiText.builtIn)} • ${game.t(UiText.edited)}' : game.t(UiText.builtIn),
+                      style: const TextStyle(color: AppColors.yellow, fontSize: 10, fontWeight: FontWeight.w900),
+                    ),
+                  ),
               ],
             ),
           ),
-          if (editable) ...[
-            IconButton(onPressed: () => _openEditor(id), icon: const Icon(Icons.edit, color: AppColors.ink)),
-            IconButton(onPressed: () => _delete(id), icon: const Icon(Icons.delete_outline, color: AppColors.red)),
-          ] else
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              color: AppColors.ink,
-              child: Text(game.t(UiText.builtIn),
-                  style: const TextStyle(color: AppColors.yellow, fontSize: 11, fontWeight: FontWeight.w900)),
+          IconButton(onPressed: () => _openEditor(id), icon: const Icon(Icons.edit, color: AppColors.ink)),
+          // نمط جديد: مسح / نمط أساسي معدّل: رجوع للأصل / نمط أساسي زي ما هو: مفيش
+          if (!builtIn)
+            IconButton(onPressed: () => _delete(id), icon: const Icon(Icons.delete_outline, color: AppColors.red))
+          else if (edited)
+            IconButton(
+              tooltip: game.t(UiText.reset),
+              onPressed: () => _delete(id),
+              icon: const Icon(Icons.restore, color: AppColors.red),
             ),
         ],
       ),
@@ -233,7 +253,8 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
   @override
   void initState() {
     super.initState();
-    final existing = widget.modeId == null ? null : customModes[widget.modeId];
+    // النمط اللي بنعدّله (جديد، أو أساسي زي classic، أو اتعدّل قبل كده)
+    final existing = widget.modeId == null ? null : allModes[widget.modeId];
     if (existing != null) {
       // تعديل نمط موجود
       _emoji.text = existing.emoji;

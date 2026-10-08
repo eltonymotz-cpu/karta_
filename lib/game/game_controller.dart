@@ -283,8 +283,11 @@ class GameController extends ChangeNotifier {
     currentRule = rule;
     phase = CardPhase.front;
 
-    sound.play(Sfx.flip);
-    HapticFeedback.selectionClick();
+    // صوت القلب (ماعدا كروت التصفيق: ليها صوت الإنذار لوحده عشان يبان على طول)
+    if (rule.type != RuleType.clap) {
+      sound.play(Sfx.flip);
+      HapticFeedback.selectionClick();
+    }
     _addLog(UiText.logDraw, {'name': currentPlayer.name, 'card': card.label, 'rule': rule.title});
 
     // قاعدة الصمت: صاحب الدور يبقى "صامت" (والصمت القديم يتلغي)
@@ -486,7 +489,7 @@ class GameController extends ChangeNotifier {
       ..addAll([for (final l in (s['log'] as List? ?? [])) LText.fromJson(Map<String, dynamic>.from(l as Map))]);
 
     // أصوات عند المتفرج كمان
-    if (currentCard != null && currentCard!.label != oldCard) sound.play(Sfx.flip);
+    if (currentCard != null && currentCard!.label != oldCard && phase != CardPhase.clapGo) sound.play(Sfx.flip);
     if (phase != oldPhase) {
       if (phase == CardPhase.bombExploded) sound.play(Sfx.boom);
       if (phase == CardPhase.clapGo) sound.play(Sfx.alarm);

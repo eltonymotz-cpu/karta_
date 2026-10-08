@@ -258,16 +258,29 @@ const Map<String, GameMode> builtInModes = {
   ),
 };
 
-/// الأنماط اللي الأدمن ضافها (بتتحمّل من Supabase أو من ذاكرة الجهاز - شوف mode_store.dart)
+/// الأنماط اللي الأدمن ضافها أو عدّلها (بتتحمّل من Supabase أو من ذاكرة الجهاز - شوف mode_store.dart)
+/// لو فيها نمط بنفس اسم نمط أساسي (مثلاً 'classic') يبقى ده تعديل الأدمن عليه، وبيتاخد بداله.
 final Map<String, GameMode> customModes = {};
 
-/// كل الأنماط: الأساسية + اللي الأدمن ضافها
+/// كل الأنماط: الأساسية + اللي الأدمن ضافها (والتعديلات بتغطي على الأصلي)
 Map<String, GameMode> get allModes => {...builtInModes, ...customModes};
+
+/// هل ده نمط أساسي (classic / party)؟
+bool isBuiltIn(String modeId) => builtInModes.containsKey(modeId);
+
+/// هل الأدمن عدّل النمط الأساسي ده؟
+bool isEdited(String modeId) => isBuiltIn(modeId) && customModes.containsKey(modeId);
 
 /// تجيب قاعدة كارت معيّن في نمط معيّن (مع دعم الوراثة basedOn)
 CardRule getRule(String modeId, String rank) {
   final mode = allModes[modeId] ?? builtInModes['classic']!;
   final rule = mode.rules[rank];
   if (rule != null) return rule;
-  return getRule(mode.basedOn!, rank); // ندوّر في النمط الأب
+  // الكارت مش موجود في النمط: ناخده من النمط الأب
+  final parentId = mode.basedOn ?? 'classic';
+  if (parentId == modeId) {
+    // تعديل الأدمن على نمط أساسي ناقصه كارت → ناخده من النسخة الأصلية
+    return builtInModes[parentId]!.rules[rank] ?? builtInModes['classic']!.rules[rank]!;
+  }
+  return getRule(parentId, rank);
 }

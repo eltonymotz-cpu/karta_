@@ -76,6 +76,9 @@ class UiText {
   static const editMode = LText('تعديل النمط', 'Ta3deel El Namat');
   static const noCustomModes = LText('لسه مفيش أنماط متضافة', 'Lessa mafeesh anmat metdafa');
   static const builtIn = LText('أساسي', 'Asasy');
+  static const edited = LText('معدّل', 'Met3addel');
+  static const resetConfirm = LText('ترجّع النمط ده لأصله؟ تعديلاتك هتتمسح', 'Terga3 el namat da l asloh? Ta3deelatak hatetmese7');
+  static const reset = LText('رجّع الأصلي', 'Raga3 el asly');
   static const deleteConfirm = LText('تمسح النمط ده؟', 'Tems7 el namat da?');
   static const delete = LText('امسح', 'Ems7');
   static const save = LText('احفظ', 'E7faz');

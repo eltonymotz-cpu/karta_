@@ -25,6 +25,7 @@ import 'screens/home_screen.dart';
 import 'screens/results_screen.dart';
 import 'screens/setup_screen.dart';
 import 'services/mode_store.dart';
+import 'services/sound_service.dart';
 import 'theme.dart';
 
 Future<void> main() async {
@@ -44,8 +45,37 @@ Future<void> main() async {
   // تحميل الأنماط اللي الأدمن ضافها
   await ModeStore.load();
 
+  // تحميل الأصوات في الخلفية (من غير ما نأخر فتح التطبيق)
+  SoundService.instance.preload();
+
   runApp(const KartaApp());
 }
+
+/// الثيم بيتعمل مرة واحدة بس (بدل ما يتحسب من الأول مع كل تغيير في اللعبة)
+final ThemeData _theme = ThemeData(
+  brightness: Brightness.light,
+  scaffoldBackgroundColor: AppColors.bg,
+  colorScheme: const ColorScheme.light(
+    primary: AppColors.ink,
+    secondary: AppColors.yellow,
+    surface: AppColors.paper,
+  ),
+  textSelectionTheme: const TextSelectionThemeData(cursorColor: AppColors.ink),
+  // انتقالات ناعمة بين الصفحات (زي صفحة تعديل النمط في الأدمن)
+  pageTransitionsTheme: const PageTransitionsTheme(
+    builders: {
+      TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+      TargetPlatform.macOS: FadeForwardsPageTransitionsBuilder(),
+    },
+  ),
+  // خط Cairo بيدعم العربي والإنجليزي
+  textTheme: GoogleFonts.cairoTextTheme(ThemeData.light().textTheme).apply(
+    bodyColor: AppColors.ink,
+    displayColor: AppColors.ink,
+  ),
+);
 
 class KartaApp extends StatefulWidget {
   const KartaApp({super.key});
@@ -74,33 +104,17 @@ class _KartaAppState extends State<KartaApp> {
 
   @override
   Widget build(BuildContext context) {
-    // ListenableBuilder: يعيد بناء الواجهة كل ما حالة اللعبة تتغير
-    return ListenableBuilder(
-      listenable: game,
-      builder: (context, _) {
-        return MaterialApp(
-          title: 'Karta - كارتة',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            brightness: Brightness.light,
-            scaffoldBackgroundColor: AppColors.bg,
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.ink,
-              secondary: AppColors.yellow,
-              surface: AppColors.paper,
-            ),
-            textSelectionTheme: const TextSelectionThemeData(cursorColor: AppColors.ink),
-            // خط Cairo بيدعم العربي والإنجليزي
-            textTheme: GoogleFonts.cairoTextTheme(ThemeData.light().textTheme).apply(
-              bodyColor: AppColors.ink,
-              displayColor: AppColors.ink,
-            ),
-          ),
-          // اتجاه الكتابة حسب اللغة: العربي يمين، والفرانكو شمال
-          builder: (context, child) => Directionality(textDirection: game.textDirection, child: child!),
-          home: _Root(game: game),
-        );
-      },
+    // الـ MaterialApp بيتبني مرة واحدة، والأجزاء اللي بتتغير بس هي اللي بتسمع للعبة
+    return MaterialApp(
+      title: 'Karta - كارتة',
+      debugShowCheckedModeBanner: false,
+      theme: _theme,
+      // اتجاه الكتابة حسب اللغة: العربي يمين، والفرانكو شمال
+      builder: (context, child) => ListenableBuilder(
+        listenable: game,
+        builder: (context, _) => Directionality(textDirection: game.textDirection, child: child!),
+      ),
+      home: _Root(game: game),
     );
   }
 }
@@ -122,7 +136,20 @@ class _Root extends StatelessWidget {
           AppScreen.game => GameScreen(key: const ValueKey('game'), game: game),
           AppScreen.results => ResultsScreen(key: const ValueKey('results'), game: game),
         };
-        return AnimatedSwitcher(duration: const Duration(milliseconds: 350), child: screen);
+        // انتقال ناعم: الشاشة الجديدة بتظهر وهي طالعة لفوق شوية
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 320),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween(begin: const Offset(0, 0.03), end: Offset.zero).animate(animation),
+              child: child,
+            ),
+          ),
+          child: screen,
+        );
       },
     );
   }
