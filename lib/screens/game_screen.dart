@@ -89,7 +89,6 @@ class _WaitingForHost extends StatelessWidget {
             Container(
               height: 180,
               padding: const EdgeInsets.all(10),
-              decoration: Brutal.box(shadowOffset: const Offset(6, 6)),
               child: Image.asset('assets/images/logo.png'),
             ),
             const SizedBox(height: 28),
@@ -260,7 +259,7 @@ class _StatusChips extends StatelessWidget {
       if (game.caduActive)
         _chip(game.t(fillText(UiText.caduChip, {'n': game.caduCards.length})), AppColors.yellow),
       if (game.asideCards.isNotEmpty)
-        _chip(game.t(fillText(UiText.asideChip, {'n': game.asideCards.length})), AppColors.sky),
+        _chip(game.t(fillText(UiText.asideChip, {'n': game.asideCards.length})), AppColors.blue),
       // الصامت: لو معاه كارت Q، الشارة بتبقى زرار ننقل بيه الكارت للي كلّمه
       if (game.silentIndex >= 0)
         game.canPassSilence

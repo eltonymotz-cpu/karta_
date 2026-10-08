@@ -4,7 +4,10 @@
 // كل نمط جديد = اسم ووصف + قاعدة لكل كارت من الـ 13 (A, K, Q, J, 10 ... 2)
 // الأنماط بتتحفظ في Supabase (وعلى الجهاز) وبتظهر في شاشة الإعداد على طول.
 // =================================================================
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../data/game_modes.dart';
 import '../data/texts.dart';
@@ -134,13 +137,7 @@ class _AdminScreenState extends State<AdminScreen> {
       decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(3, 3)),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: Brutal.box(color: AppColors.yellow, borderWidth: 2, shadowOffset: Offset.zero),
-            child: Text(mode.emoji, style: const TextStyle(fontSize: 22)),
-          ),
+          ModeIcon(mode: mode, size: 48),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -238,6 +235,30 @@ class _RuleDraft {
   }
 }
 
+/// مسودة كارت زيادة: اسمه وعدد نسخه وقاعدته
+class _ExtraDraft {
+  final label = TextEditingController();
+  int copies = 2;
+  final rule = _RuleDraft();
+
+  _ExtraDraft();
+
+  factory _ExtraDraft.from(ExtraCard card) {
+    final draft = _ExtraDraft()
+      ..copies = card.copies
+      ..rule.fill(card.rule);
+    draft.label.text = card.label;
+    return draft;
+  }
+
+  ExtraCard build() => ExtraCard(label: label.text.trim(), copies: copies, rule: rule.build());
+
+  void dispose() {
+    label.dispose();
+    rule.dispose();
+  }
+}
+
 class _ModeEditorScreenState extends State<ModeEditorScreen> {
   final _emoji = TextEditingController();
   final _nameAr = TextEditingController();
@@ -245,6 +266,8 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
   final _descAr = TextEditingController();
   final _descFr = TextEditingController();
   final Map<String, _RuleDraft> _drafts = {for (final r in cardRanks) r: _RuleDraft()};
+  final List<_ExtraDraft> _extras = [];  // الكروت الزيادة
+  String? _image;                        // صورة النمط (base64)
   String _copyFrom = 'classic';
   bool _saving = false;
 
@@ -262,6 +285,8 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
       _nameFr.text = existing.name.fr;
       _descAr.text = existing.description.ar;
       _descFr.text = existing.description.fr;
+      _image = existing.image;
+      _extras.addAll(existing.extraCards.map(_ExtraDraft.from));
       _fillCardsFrom(widget.modeId!);
     } else {
       // نمط جديد: نبدأ بقواعد الكلاسيك عشان يعدّل عليها بدل ما يكتب من الصفر
@@ -285,13 +310,48 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
     for (final d in _drafts.values) {
       d.dispose();
     }
+    for (final x in _extras) {
+      x.dispose();
+    }
     super.dispose();
+  }
+
+  /// اختيار صورة للنمط من الجهاز (بنصغّرها عشان تتحفظ بسرعة)
+  Future<void> _pickImage() async {
+    try {
+      final file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 480,
+        maxHeight: 480,
+        imageQuality: 75,
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      setState(() => _image = base64Encode(bytes));
+    } catch (_) {
+      _snack(game.t(UiText.imageFailed), AppColors.red);
+    }
+  }
+
+  /// هل الكروت الزيادة سليمة؟ (ليها اسم وعنوان، ومفيش اسم متكرر أو زي كارت من الـ 13)
+  bool _extrasValid() {
+    final labels = <String>{};
+    for (final x in _extras) {
+      final label = x.label.text.trim();
+      if (label.isEmpty || !x.rule.hasTitle || label.contains(extraSuit)) return false;
+      if (cardRanks.contains(label.toUpperCase()) || !labels.add(label)) return false;
+    }
+    return true;
   }
 
   Future<void> _save() async {
     final hasName = _nameAr.text.trim().isNotEmpty || _nameFr.text.trim().isNotEmpty;
     if (!hasName || _drafts.values.any((d) => !d.hasTitle)) {
       _snack(game.t(UiText.fillRequired), AppColors.red);
+      return;
+    }
+    if (!_extrasValid()) {
+      _snack(game.t(UiText.extraInvalid), AppColors.red);
       return;
     }
     // لو كتب لغة واحدة بس، نستخدمها للغتين
@@ -302,6 +362,8 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
       description: LText(_descAr.text.trim(), _descFr.text.trim()),
       basedOn: 'classic',
       rules: {for (final rank in cardRanks) rank: _drafts[rank]!.build()},
+      extraCards: [for (final x in _extras) x.build()],
+      image: _image,
     );
     final id = widget.modeId ?? 'custom_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -356,7 +418,48 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                       _field(game.t(UiText.modeNameAr), _nameAr),
                       _field(game.t(UiText.modeNameFr), _nameFr, ltr: true),
                       _field(game.t(UiText.modeDescAr), _descAr, lines: 2),
-                      _field(game.t(UiText.modeDescFr), _descFr, lines: 2, ltr: true, last: true),
+                      _field(game.t(UiText.modeDescFr), _descFr, lines: 2, ltr: true),
+                      // صورة النمط
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(game.t(UiText.modeImage).toUpperCase(),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            width: 72,
+                            height: 72,
+                            clipBehavior: Clip.antiAlias,
+                            decoration: Brutal.box(color: AppColors.bg, borderWidth: 2, shadowOffset: Offset.zero),
+                            child: _image == null
+                                ? const Center(child: StickerImage(Sticker.magnifier, size: 34))
+                                : Image.memory(base64Decode(_image!), fit: BoxFit.cover),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                BrutalButton(
+                                  label: game.t(UiText.pickImage),
+                                  onTap: _pickImage,
+                                  showArrow: false,
+                                  height: 40,
+                                  fontSize: 14,
+                                ),
+                                if (_image != null)
+                                  TextButton(
+                                    onPressed: () => setState(() => _image = null),
+                                    child: Text(game.t(UiText.removeImage),
+                                        style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -392,7 +495,27 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                 Text(game.t(UiText.playerTip), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
                 const SizedBox(height: 12),
                 for (final rank in cardRanks) _rankEditor(rank),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
+
+                // ---------- كروت زيادة ----------
+                _section('${game.t(UiText.extraCards)} (${_extras.length})'),
+                Text(game.t(UiText.extraCardsHint), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                const SizedBox(height: 12),
+                for (var i = 0; i < _extras.length; i++) _extraEditor(i),
+                BrutalButton(
+                  label: '+ ${game.t(UiText.addExtra)}',
+                  color: AppColors.paper,
+                  showArrow: false,
+                  height: 48,
+                  fontSize: 15,
+                  onTap: () => setState(() {
+                    final draft = _ExtraDraft();
+                    draft.label.text = 'X${_extras.length + 1}';
+                    draft.rule.fill(getRule('classic', 'A')); // بداية جاهزة يعدّل عليها
+                    _extras.add(draft);
+                  }),
+                ),
+                const SizedBox(height: 24),
                 _saving
                     ? const Center(child: CircularProgressIndicator(color: AppColors.ink))
                     : BrutalButton(label: game.t(UiText.save), onTap: _save),
@@ -416,9 +539,55 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
     );
   }
 
-  /// محرر كارت واحد (بيفتح ويقفل)
-  Widget _rankEditor(String rank) {
-    final d = _drafts[rank]!;
+  /// محرر كارت من الـ 13
+  Widget _rankEditor(String rank) =>
+      _ruleEditor(label: rank, d: _drafts[rank]!, key: ValueKey('$rank-$_copyFrom'));
+
+  /// محرر كارت زيادة: اسمه + عدد نسخه + قاعدته + زرار مسح
+  Widget _extraEditor(int index) {
+    final x = _extras[index];
+    return _ruleEditor(
+      label: x.label.text.isEmpty ? '?' : x.label.text,
+      d: x.rule,
+      key: ObjectKey(x),
+      color: styleFor(x.label.text).color,
+      topFields: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(child: _field(game.t(UiText.extraLabel), x.label, onChanged: () => setState(() {}), maxLength: 3)),
+            const SizedBox(width: 12),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(game.t(UiText.copies).toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                  DropdownButton<int>(
+                    value: x.copies,
+                    dropdownColor: AppColors.paper,
+                    items: [for (var n = 1; n <= 8; n++) DropdownMenuItem(value: n, child: Text('× $n'))],
+                    onChanged: (n) => setState(() => x.copies = n ?? x.copies),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+      onDelete: () => setState(() => _extras.removeAt(index).dispose()),
+    );
+  }
+
+  /// محرر قاعدة كارت (بيفتح ويقفل)
+  Widget _ruleEditor({
+    required String label,
+    required _RuleDraft d,
+    required Key key,
+    Color color = AppColors.ink,
+    List<Widget> topFields = const [],
+    VoidCallback? onDelete,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias, // مربع الرقم يمشي مع الزوايا المدوّرة
@@ -427,14 +596,14 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
         // نشيل الخطوط اللي ExpansionTile بيحطها فوق وتحت
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          key: ValueKey('$rank-$_copyFrom'), // عشان يتحدث لما ننسخ من نمط تاني
+          key: key, // عشان يتحدث لما ننسخ من نمط تاني
           tilePadding: const EdgeInsetsDirectional.only(start: 0, end: 12),
           leading: Container(
             width: 52,
             height: 56,
             alignment: Alignment.center,
-            color: AppColors.ink,
-            child: Text(rank, style: const TextStyle(color: AppColors.yellow, fontSize: 20, fontWeight: FontWeight.w900)),
+            color: color == AppColors.ink ? styleFor(label).color : color,
+            child: Text(label, style: pixelStyle(size: 20)),
           ),
           title: Text(
             '${d.emoji.text}  ${game.lang == AppLang.ar ? d.titleAr.text : d.titleFr.text}',
@@ -445,6 +614,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
           subtitle: Text(_typeLabel(d.type), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
           childrenPadding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
           children: [
+            ...topFields,
             _field(game.t(UiText.emoji), d.emoji, onChanged: () => setState(() {})),
             _field(game.t(UiText.ruleTitleAr), d.titleAr, onChanged: () => setState(() {})),
             _field(game.t(UiText.ruleTitleFr), d.titleFr, ltr: true, onChanged: () => setState(() {})),
@@ -478,6 +648,15 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
               activeColor: AppColors.ink,
               checkColor: AppColors.yellow,
             ),
+            if (onDelete != null)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton.icon(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, color: AppColors.red),
+                  label: Text(game.t(UiText.delete), style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
+                ),
+              ),
           ],
         ),
       ),
@@ -496,7 +675,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
 
   /// خانة كتابة بعنوان صغير فوقها
   Widget _field(String label, TextEditingController controller,
-      {int lines = 1, bool ltr = false, bool last = false, VoidCallback? onChanged}) {
+      {int lines = 1, bool ltr = false, bool last = false, VoidCallback? onChanged, int? maxLength}) {
     return Padding(
       padding: EdgeInsets.only(bottom: last ? 0 : 12),
       child: Column(
@@ -508,6 +687,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
             controller: controller,
             maxLines: lines,
             minLines: 1,
+            maxLength: maxLength,
             textDirection: ltr ? TextDirection.ltr : null,
             onChanged: onChanged == null ? null : (_) => onChanged(),
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),

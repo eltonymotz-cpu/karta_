@@ -41,8 +41,8 @@ class GameController extends ChangeNotifier {
   static const ranks = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
   static const minPlayers = 3;
   static const maxPlayers = 8;
-  static const bombMinSeconds = 15;
-  static const bombMaxSeconds = 120;
+  static const bombMinSeconds = 10;
+  static const bombMaxSeconds = 60;
 
   // ---------------- الحالة العامة ----------------
   AppLang lang = AppLang.ar;            // اللغة الحالية
@@ -222,14 +222,23 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// تعمل 52 كارت (13 قيمة × 4 أشكال) وتخلطهم
+  /// تعمل 52 كارت (13 قيمة × 4 أشكال) + الكروت الزيادة بتاعة النمط، وتخلطهم
   List<PlayingCard> _buildDeck() {
     final cards = [
       for (final suit in suits)
         for (final rank in ranks) PlayingCard(rank, suit),
+      for (final extra in mode.extraCards)
+        for (var i = 0; i < extra.copies; i++) PlayingCard(extra.label, extraSuit),
     ];
     cards.shuffle(_random);
     return cards;
+  }
+
+  /// عدد كروت الكومة كلها في نمط معيّن (52 + الكروت الزيادة)
+  static int deckSize(String modeId) {
+    final mode = allModes[modeId];
+    final extras = mode?.extraCards.fold<int>(0, (sum, x) => sum + x.copies) ?? 0;
+    return 52 + extras;
   }
 
   /// تنهي اللعبة وتروح لشاشة النتائج

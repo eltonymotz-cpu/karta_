@@ -47,7 +47,6 @@ class ResultsScreen extends StatelessWidget {
                               width: 96,
                               height: 104,
                               padding: const EdgeInsets.all(6),
-                              decoration: Brutal.box(),
                               child: Image.asset('assets/images/logo.png'),
                             ),
                           ],

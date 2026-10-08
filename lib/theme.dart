@@ -1,48 +1,43 @@
 // =================================================================
 // ألوان وأشكال التطبيق
 // -----------------------------------------------------------------
-// الستايل: "Playful Geometric" → خلفية كريمي فيها نقط، صناديق مدوّرة بحدود
-// سودا وظل صلب، زراير صفرا مدوّرة، وأشكال هندسية ملونة (مثلثات ودواير ومربعات).
+// الستايل: "Retro Pixel" → خلفية زرقا فاتحة بمربعات زي الكراسة، شبابيك كمبيوتر
+// قديمة (شريط عنوان ملون + _ □ ✕)، ستيكرز بيكسل، وخط بيكسل للعناوين.
 // غيّر القيم هنا لتغيير شكل التطبيق كله من مكان واحد.
 // =================================================================
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const bg = Color(0xFFFBF3E6);       // خلفية التطبيق (كريمي دافي)
-  static const paper = Color(0xFFFFFAF2);    // لون الصناديق والكروت
-  static const ink = Color(0xFF1B1B1F);      // الأسود: الحدود والنص الأساسي
-  static const yellow = Color(0xFFFFDB1F);   // الأصفر: الزراير الأساسية
-  static const red = Color(0xFFF25C5C);      // أحمر مرجاني: تنبيهات وكروت ♥ ♦
-  static const sky = Color(0xFF7FD0E0);      // أزرق سماوي: شارة النقط (السكور)
-  static const green = Color(0xFF6BBE45);    // أخضر
-  static const violet = Color(0xFF6E7FF3);   // بنفسجي مزرق
-  static const muted = Color(0xFF6E6A63);    // نص ثانوي
-  static const line = Color(0xFFE4DACB);     // خطوط خفيفة
+  static const bg = Color(0xFFDCE6FA);       // خلفية التطبيق (أزرق فاتح)
+  static const gridLine = Color(0xFFF5F8FF); // خطوط المربعات في الخلفية
+  static const paper = Color(0xFFFCEBD5);    // لون الشبابيك والكروت (كريمي)
+  static const ink = Color(0xFF3B2A2E);      // البني الغامق: الحدود والنص
+  static const yellow = Color(0xFFF2C94C);   // أصفر: الزراير الأساسية
+  static const teal = Color(0xFF5DB3A4);     // تركواز: شريط عنوان الشباك
+  static const orange = Color(0xFFF08A3C);   // برتقالي
+  static const red = Color(0xFFE8585A);      // أحمر: تنبيهات وكروت ♥ ♦
+  static const pink = Color(0xFFF29BBE);     // بمبي
+  static const blue = Color(0xFF6E8EF0);     // أزرق
+  static const green = Color(0xFF6CC468);    // أخضر
+  static const purple = Color(0xFFA98BF0);   // موف
+  static const muted = Color(0xFF7A6A66);    // نص ثانوي
+  static const line = Color(0xFFE2CFB6);     // خطوط خفيفة
 
   // لون مختلف لكل لاعب (حتى 8 لاعبين)
-  static const playerColors = [
-    Color(0xFFFFDB1F),
-    Color(0xFF7FD0E0),
-    Color(0xFFF25C5C),
-    Color(0xFF6BBE45),
-    Color(0xFF6E7FF3),
-    Color(0xFFFF9F45),
-    Color(0xFFFF8FB8),
-    Color(0xFF2EC4B6),
-  ];
+  static const playerColors = [teal, orange, pink, yellow, blue, green, red, purple];
 }
 
 /// مقاسات الستايل
 class Brutal {
   static const double border = 2.2;          // سُمك الحدود
-  static const double radius = 18;           // استدارة الزوايا
+  static const double radius = 6;            // استدارة خفيفة زي الشبابيك القديمة
   static const Offset shadow = Offset(4, 4); // إزاحة الظل الصلب
 
   /// ظل صلب (من غير تمويه)
   static List<BoxShadow> hardShadow({Offset offset = shadow, Color color = AppColors.ink}) =>
       [BoxShadow(color: color, offset: offset, blurRadius: 0)];
 
-  /// شكل صندوق جاهز: فاتح بحدود سودا وظل صلب
+  /// شكل صندوق جاهز: كريمي بحدود غامقة وظل صلب
   static BoxDecoration box({
     Color color = AppColors.paper,
     double borderWidth = border,
@@ -59,41 +54,59 @@ class Brutal {
   }
 }
 
-// =================================================================
-// شكل كل كارت: لون خاص + رسمة هندسية خاصة
-// -----------------------------------------------------------------
-// كل قيمة كارت (A, K, Q ...) ليها لون مختلف ونقشة مختلفة، فمفيش كارتين شبه بعض.
-// =================================================================
+/// الستيكرز (صور بيكسل في assets/images/stickers)
+enum Sticker {
+  cursor, magnifier, sparkle, heart, warning, music, papers,
+  envelope, mail, letter, xbutton, check, smiley, oval, speech;
 
-/// أنواع النقشات الهندسية اللي بتترسم على وش الكارت (شوف widgets/card_decor.dart)
-enum CardPattern { triangles, circles, grid, burst, confetti, waves, squares, halfMoon, crosses, stripes }
-
-/// شكل كارت واحد
-class CardStyle {
-  final Color color;          // اللون الأساسي للكارت
-  final CardPattern pattern;  // النقشة
-  const CardStyle(this.color, this.pattern);
-
-  /// لون فاتح من نفس اللون (لخلفية الكارت)
-  Color get tint => Color.lerp(color, AppColors.paper, 0.78)!;
+  String get path => 'assets/images/stickers/$name.png';
 }
 
-/// شكل كل قيمة كارت
+// =================================================================
+// شكل كل كارت: لون خاص + ستيكر خاص
+// -----------------------------------------------------------------
+// كل قيمة كارت (A, K, Q ...) ليها لون شريط عنوان مختلف وستيكر مختلف.
+// الكروت الزيادة اللي الأدمن بيضيفها بتاخد شكل من القائمة extraStyles.
+// =================================================================
+class CardStyle {
+  final Color color;      // لون شريط العنوان والزينة
+  final Sticker sticker;  // الستيكر الكبير في نص الكارت
+  const CardStyle(this.color, this.sticker);
+
+  /// لون فاتح من نفس اللون (لخلفية الكارت)
+  Color get tint => Color.lerp(color, AppColors.paper, 0.62)!;
+}
+
 const Map<String, CardStyle> cardStyles = {
-  'A': CardStyle(Color(0xFFF25C5C), CardPattern.triangles),  // مرجاني
-  'K': CardStyle(Color(0xFFFFC21F), CardPattern.circles),    // أصفر غامق
-  'Q': CardStyle(Color(0xFF6E7FF3), CardPattern.grid),       // بنفسجي
-  'J': CardStyle(Color(0xFFFF7A3D), CardPattern.burst),      // برتقالي (القنبلة)
-  '10': CardStyle(Color(0xFFFF8FB8), CardPattern.confetti),  // بمبي (الكادو)
-  '9': CardStyle(Color(0xFF5BC3D9), CardPattern.waves),      // سماوي
-  '8': CardStyle(Color(0xFF6BBE45), CardPattern.squares),    // أخضر
-  '7': CardStyle(Color(0xFFFF9F45), CardPattern.halfMoon),   // برتقالي فاتح
-  '6': CardStyle(Color(0xFF2EC4B6), CardPattern.triangles),  // تركواز
-  '5': CardStyle(Color(0xFF4F8BFF), CardPattern.circles),    // أزرق
-  '4': CardStyle(Color(0xFFB57CFF), CardPattern.stripes),    // موف
-  '3': CardStyle(Color(0xFF3DBE7A), CardPattern.confetti),   // أخضر نعناعي (حظ سعيد)
-  '2': CardStyle(Color(0xFF7A7287), CardPattern.crosses),    // رمادي (حظ وحش)
+  'A': CardStyle(AppColors.teal, Sticker.magnifier),     // سؤال تعجيزي
+  'K': CardStyle(AppColors.yellow, Sticker.smiley),      // نكتة
+  'Q': CardStyle(AppColors.pink, Sticker.speech),        // صمت
+  'J': CardStyle(AppColors.orange, Sticker.warning),     // قنبلة
+  '10': CardStyle(AppColors.red, Sticker.mail),          // كادو
+  '9': CardStyle(AppColors.blue, Sticker.music),         // وزن وقافية
+  '8': CardStyle(Color(0xFFE0A458), Sticker.papers),     // براندات
+  '7': CardStyle(Color(0xFFFF7F6B), Sticker.sparkle),    // تصفيق
+  '6': CardStyle(Color(0xFF4FC1C9), Sticker.heart),      // تصفيق
+  '5': CardStyle(AppColors.purple, Sticker.cursor),      // تصفيق
+  '4': CardStyle(Color(0xFF8FB85C), Sticker.letter),     // عمري ما
+  '3': CardStyle(AppColors.green, Sticker.check),        // حظ سعيد
+  '2': CardStyle(Color(0xFF8C7B8F), Sticker.xbutton),    // حظ وحش
 };
 
-/// شكل كارت معيّن (ولو مش موجود ناخد شكل A)
-CardStyle styleFor(String rank) => cardStyles[rank] ?? cardStyles['A']!;
+/// أشكال الكروت الزيادة (بالترتيب حسب اسم الكارت)
+const List<CardStyle> extraStyles = [
+  CardStyle(Color(0xFFFF6FAE), Sticker.heart),
+  CardStyle(Color(0xFF52B6E8), Sticker.sparkle),
+  CardStyle(Color(0xFFFFB13D), Sticker.envelope),
+  CardStyle(Color(0xFF7BCB6E), Sticker.smiley),
+  CardStyle(Color(0xFFB58CFF), Sticker.oval),
+  CardStyle(Color(0xFFFF8A5C), Sticker.music),
+];
+
+/// شكل كارت معيّن (والكروت الزيادة بتاخد شكل ثابت حسب اسمها)
+CardStyle styleFor(String rank) {
+  final known = cardStyles[rank];
+  if (known != null) return known;
+  final code = rank.codeUnits.fold<int>(0, (sum, c) => sum + c);
+  return extraStyles[code % extraStyles.length];
+}

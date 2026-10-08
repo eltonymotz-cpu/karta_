@@ -28,6 +28,7 @@ import 'screens/setup_screen.dart';
 import 'services/mode_store.dart';
 import 'services/sound_service.dart';
 import 'theme.dart';
+import 'widgets/common.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -100,8 +101,11 @@ class _KartaAppState extends State<KartaApp> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // نحمّل صورة اللوجو من الأول، عشان ضهر الكارت يظهر من غير تأخير
+    // نحمّل صورة اللوجو والستيكرز من الأول، عشان الكروت تظهر من غير تأخير
     precacheImage(const AssetImage('assets/images/logo.png'), context);
+    for (final sticker in Sticker.values) {
+      precacheImage(AssetImage(sticker.path), context);
+    }
   }
 
   @override
@@ -151,7 +155,14 @@ class _FontWarmup extends StatelessWidget {
       child: IgnorePointer(
         child: Opacity(
           opacity: 0.01,
-          child: Text(emojis, style: const TextStyle(fontSize: 6, fontWeight: FontWeight.w800)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(emojis, style: const TextStyle(fontSize: 6, fontWeight: FontWeight.w800)),
+              // خط البيكسل كمان (عشان العناوين تظهر بيه من أول مرة)
+              Text('Karta AKQJ 1234567890 ★', style: pixelStyle(size: 6)),
+            ],
+          ),
         ),
       ),
     );

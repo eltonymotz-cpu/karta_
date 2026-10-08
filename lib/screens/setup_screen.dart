@@ -149,7 +149,6 @@ class _SetupScreenState extends State<SetupScreen> {
         Container(
           height: 220,
           padding: const EdgeInsets.all(12),
-          decoration: Brutal.box(shadowOffset: const Offset(6, 6)),
           child: Center(child: Image.asset('assets/images/logo.png', fit: BoxFit.contain)),
         ),
         const Positioned(top: 10, right: 10, child: DotGrid(columns: 4, rows: 3)),
@@ -279,17 +278,8 @@ class _SetupScreenState extends State<SetupScreen> {
           ),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: Brutal.box(
-                  color: selected ? AppColors.paper : AppColors.yellow,
-                  borderWidth: 2,
-                  shadowOffset: Offset.zero,
-                ),
-                child: Text(mode.emoji, style: const TextStyle(fontSize: 22)),
-              ),
+              // صورة النمط (أو الإيموجي لو مفيش صورة)
+              ModeIcon(mode: mode, size: 52, color: selected ? AppColors.paper : AppColors.yellow),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

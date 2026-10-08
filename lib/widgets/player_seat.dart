@@ -61,8 +61,8 @@ class PlayerSeat extends StatelessWidget {
     final scoreBox = Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
       decoration: BoxDecoration(
-        color: count > 0 ? AppColors.sky : AppColors.paper,
-        borderRadius: BorderRadius.circular(99),
+        color: count > 0 ? AppColors.yellow : AppColors.paper,
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: AppColors.ink, width: 1.6),
       ),
       child: Row(
@@ -125,7 +125,6 @@ class PlayerSeat extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: vertical ? 6 : 8, vertical: 6),
               decoration: Brutal.box(
                 color: isCurrent ? AppColors.yellow : AppColors.paper,
-                radius: 16,
                 shadowOffset: clickable ? const Offset(4, 4) : const Offset(3, 3),
                 shadowColor: clickable ? AppColors.red : AppColors.ink,
               ),

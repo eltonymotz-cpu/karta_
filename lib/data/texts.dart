@@ -103,6 +103,22 @@ class UiText {
   static const rulePromptFr = LText('سؤال اختيار الخسران (فرانكو)', 'So2al ekhtyar el khasran (Franco)');
   static const ruleType = LText('نوع الكارت', 'No3 el kart');
   static const silence = LText('يفعّل وضع الصمت 🤐', 'Yfa33al wad3 el samt 🤐');
+  static const modeImage = LText('صورة النمط', 'Soret el namat');
+  static const pickImage = LText('اختار صورة', 'Ekhtar sora');
+  static const removeImage = LText('شيل الصورة', 'Sheel el sora');
+  static const imageFailed = LText('مقدرناش نفتح الصورة', 'Ma2dernash nefta7 el sora');
+  static const extraCards = LText('كروت زيادة', 'Kroot ziada');
+  static const extraCardsHint = LText(
+    'كروت بقواعد جديدة غير الـ 13 العاديين، بتتضاف للكومة. اكتب اسم قصير (لحد 3 حروف) وعدد النسخ.',
+    'Kroot b 2awa3ed gdeda gher el 13 el 3adeyeen, btetdaf lel koma. Ekteb esm 2osayar (l7ad 3 7orof) w 3adad el nosakh.',
+  );
+  static const addExtra = LText('كارت زيادة', 'Kart ziada');
+  static const extraLabel = LText('اسم الكارت (لحد 3 حروف)', 'Esm el kart (l7ad 3 7orof)');
+  static const copies = LText('عدد النسخ', '3adad el nosakh');
+  static const extraInvalid = LText(
+    'كل كارت زيادة لازم يكون ليه اسم مش متكرر (ومش زي A أو K...) وعنوان',
+    'Kol kart ziada lazem ykoon leh esm mesh mekarar (w mesh zay A aw K...) w 3enwan',
+  );
   static const fillRequired = LText('لازم تكتب اسم النمط وعنوان كل الـ 13 كارت', 'Lazem tekteb esm el namat w 3enwan kol el 13 kart');
 
   // أسماء أنواع الكروت في لوحة الأدمن

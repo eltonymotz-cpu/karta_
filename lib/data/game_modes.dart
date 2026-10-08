@@ -58,6 +58,25 @@ class CardRule {
       );
 }
 
+/// كارت زيادة (غير الـ 13 العاديين): الأدمن بيضيفه للنمط وبيتحط في الكومة
+class ExtraCard {
+  final String label;   // اسمه القصير اللي بيظهر على الكارت (مثلاً JK أو ★)
+  final int copies;     // كام نسخة منه في الكومة
+  final CardRule rule;  // قاعدته
+  const ExtraCard({required this.label, required this.copies, required this.rule});
+
+  Map<String, dynamic> toJson() => {'label': label, 'copies': copies, 'rule': rule.toJson()};
+
+  factory ExtraCard.fromJson(Map<String, dynamic> json) => ExtraCard(
+        label: json['label'] as String? ?? 'X',
+        copies: (json['copies'] as num?)?.toInt() ?? 2,
+        rule: CardRule.fromJson(Map<String, dynamic>.from(json['rule'] as Map)),
+      );
+}
+
+/// شكل الكروت الزيادة في الكومة (بدل ♠ ♥ ♦ ♣)
+const extraSuit = '★';
+
 /// نمط لعب كامل
 class GameMode {
   final String emoji;                  // إيموجي النمط في شاشة الإعداد
@@ -65,6 +84,8 @@ class GameMode {
   final LText description;
   final String? basedOn;               // النمط اللي بنورث منه القواعد الناقصة
   final Map<String, CardRule> rules;   // المفتاح = قيمة الكارت
+  final List<ExtraCard> extraCards;    // كروت زيادة غير الـ 13 (الأدمن بيضيفها)
+  final String? image;                 // صورة النمط (base64) - الأدمن بيرفعها
 
   const GameMode({
     required this.emoji,
@@ -72,6 +93,8 @@ class GameMode {
     required this.description,
     this.basedOn,
     required this.rules,
+    this.extraCards = const [],
+    this.image,
   });
 
   /// تحويل لـ JSON (الأنماط اللي الأدمن بيضيفها بتتحفظ بالشكل ده)
@@ -80,6 +103,8 @@ class GameMode {
         'name': name.toJson(),
         'description': description.toJson(),
         'rules': {for (final e in rules.entries) e.key: e.value.toJson()},
+        if (extraCards.isNotEmpty) 'extras': [for (final x in extraCards) x.toJson()],
+        if (image != null) 'image': image,
       };
 
   /// قراءة من JSON
@@ -93,6 +118,10 @@ class GameMode {
       rules: {
         for (final e in rules.entries) e.key: CardRule.fromJson(Map<String, dynamic>.from(e.value as Map)),
       },
+      extraCards: [
+        for (final x in (json['extras'] as List? ?? [])) ExtraCard.fromJson(Map<String, dynamic>.from(x as Map)),
+      ],
+      image: json['image'] as String?,
     );
   }
 }
@@ -276,6 +305,10 @@ CardRule getRule(String modeId, String rank) {
   final mode = allModes[modeId] ?? builtInModes['classic']!;
   final rule = mode.rules[rank];
   if (rule != null) return rule;
+  // كارت زيادة من كروت النمط
+  for (final extra in mode.extraCards) {
+    if (extra.label == rank) return extra.rule;
+  }
   // الكارت مش موجود في النمط: ناخده من النمط الأب
   final parentId = mode.basedOn ?? 'classic';
   if (parentId == modeId) {

@@ -1,15 +1,33 @@
 // =================================================================
-// عناصر واجهة مشتركة بتستخدمها كل الشاشات (ستايل Playful Geometric)
+// عناصر واجهة مشتركة بتستخدمها كل الشاشات (ستايل Retro Pixel)
 // =================================================================
-import 'dart:math';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../data/game_modes.dart';
 import '../data/texts.dart';
 import '../game/game_controller.dart';
 import '../theme.dart';
 
-/// خلفية التطبيق: كريمي + نقط في الخلفية كلها + أشكال هندسية خفيفة في الأركان
+// =================================================================
+// الخطوط
+// =================================================================
+
+/// خط البيكسل للعناوين والزراير (Pixelify Sans)، والعربي بيتكتب بخط Baloo
+/// لأن مفيش خط بيكسل عربي، فالتطبيق بيستخدمه احتياطي للحروف العربي.
+TextStyle pixelStyle({double size = 16, Color color = AppColors.ink, FontWeight weight = FontWeight.w700}) {
+  return GoogleFonts.pixelifySans(fontSize: size, color: color, fontWeight: weight, height: 1.15).copyWith(
+    fontFamilyFallback: [GoogleFonts.balooBhaijaan2().fontFamily!],
+  );
+}
+
+// =================================================================
+// الخلفية
+// =================================================================
+
+/// خلفية التطبيق: أزرق فاتح بمربعات زي الكراسة + ستيكرز صغيرة في الأركان
 class AppBackground extends StatelessWidget {
   final Widget child;
   const AppBackground({super.key, required this.child});
@@ -20,51 +38,106 @@ class AppBackground extends StatelessWidget {
       color: AppColors.bg,
       child: Stack(
         children: [
-          // النقط
-          const Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _DotsPainter()))),
-          // أشكال هندسية في الأركان
-          Positioned(top: 90, right: -18, child: Transform.rotate(angle: 0.3, child: _shape(AppColors.sky, 46, circle: false))),
-          Positioned(bottom: 120, left: -20, child: _shape(AppColors.red, 54, circle: true)),
-          const Positioned(top: 200, left: 14, child: ShapeAccent(size: 12)),
+          const Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _GridPainter()))),
+          const Positioned(top: 96, right: 8, child: Opacity(opacity: 0.8, child: StickerImage(Sticker.sparkle, size: 26))),
+          const Positioned(bottom: 110, left: 6, child: Opacity(opacity: 0.8, child: StickerImage(Sticker.heart, size: 26))),
           Positioned.fill(child: child),
         ],
       ),
     );
   }
-
-  Widget _shape(Color color, double size, {required bool circle}) {
-    return Opacity(
-      opacity: 0.55,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: circle ? BoxShape.circle : BoxShape.rectangle,
-          border: Border.all(color: AppColors.ink, width: 2),
-        ),
-      ),
-    );
-  }
 }
 
-/// نقط صغيرة منتظمة في الخلفية كلها
-class _DotsPainter extends CustomPainter {
-  const _DotsPainter();
+/// مربعات الخلفية
+class _GridPainter extends CustomPainter {
+  const _GridPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = AppColors.ink.withValues(alpha: 0.13);
-    const gap = 18.0;
-    for (double x = gap / 2; x < size.width; x += gap) {
-      for (double y = gap / 2; y < size.height; y += gap) {
-        canvas.drawCircle(Offset(x, y), 1.1, paint);
-      }
+    final paint = Paint()
+      ..color = AppColors.gridLine
+      ..strokeWidth = 2;
+    const cell = 24.0;
+    for (double x = 0; x < size.width; x += cell) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y < size.height; y += cell) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// =================================================================
+// الستيكرز
+// =================================================================
+
+/// صورة ستيكر بيكسل
+class StickerImage extends StatelessWidget {
+  final Sticker sticker;
+  final double size;
+  const StickerImage(this.sticker, {super.key, this.size = 32});
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(sticker.path, width: size, height: size, fit: BoxFit.contain, filterQuality: FilterQuality.medium);
+  }
+}
+
+/// ستيكر زينة صغير (نجمة بيكسل)
+class ShapeAccent extends StatelessWidget {
+  final double size;
+  const ShapeAccent({super.key, this.size = 14});
+
+  @override
+  Widget build(BuildContext context) => StickerImage(Sticker.sparkle, size: size * 2);
+}
+
+/// شريط ستيكرز صغيرة متكررة (بيتحط تحت الشاشات والكروت)
+class ShapesStrip extends StatelessWidget {
+  final double height;
+  const ShapesStrip({super.key, this.height = 16});
+
+  static const _row = [Sticker.heart, Sticker.sparkle, Sticker.check, Sticker.smiley, Sticker.music, Sticker.xbutton];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: LayoutBuilder(builder: (context, constraints) {
+        final count = (constraints.maxWidth / (height * 1.7)).floor().clamp(1, 40);
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [for (var i = 0; i < count; i++) StickerImage(_row[i % _row.length], size: height)],
+        );
+      }),
+    );
+  }
+}
+
+/// أيقونة النمط: صورته لو الأدمن رفع صورة، وإلا الإيموجي بتاعه
+class ModeIcon extends StatelessWidget {
+  final GameMode mode;
+  final double size;
+  final Color color;
+  const ModeIcon({super.key, required this.mode, this.size = 48, this.color = AppColors.yellow});
+
+  @override
+  Widget build(BuildContext context) {
+    final image = mode.image;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      clipBehavior: Clip.antiAlias,
+      decoration: Brutal.box(color: color, borderWidth: 2, shadowOffset: Offset.zero),
+      child: image != null
+          ? Image.memory(base64Decode(image), width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true)
+          : Text(mode.emoji, style: TextStyle(fontSize: size * 0.5)),
+    );
+  }
 }
 
 /// شبكة نقط صغيرة للزينة
@@ -91,10 +164,11 @@ class _DotPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = AppColors.ink.withValues(alpha: 0.6);
+    final paint = Paint()..color = AppColors.ink.withValues(alpha: 0.55);
     for (var x = 0; x < columns; x++) {
       for (var y = 0; y < rows; y++) {
-        canvas.drawCircle(Offset(x * gap + gap / 2, y * gap + gap / 2), 1.3, paint);
+        // نقط مربعة (بيكسل)
+        canvas.drawRect(Rect.fromCenter(center: Offset(x * gap + gap / 2, y * gap + gap / 2), width: 2.4, height: 2.4), paint);
       }
     }
   }
@@ -103,100 +177,11 @@ class _DotPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// علامة زينة: مربع أحمر صغير عليه علامة + (زي التصميم)
-class ShapeAccent extends StatelessWidget {
-  final double size;
-  final Color color;
-  const ShapeAccent({super.key, this.size = 14, this.color = AppColors.red});
+// =================================================================
+// الشبابيك والصناديق
+// =================================================================
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size * 2.4,
-      height: size * 2.4,
-      child: CustomPaint(painter: _AccentPainter(color, size)),
-    );
-  }
-}
-
-class _AccentPainter extends CustomPainter {
-  final Color color;
-  final double s;
-  _AccentPainter(this.color, this.s);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = size.center(Offset.zero);
-    canvas.drawRect(Rect.fromCenter(center: c, width: s, height: s), Paint()..color = color);
-    final line = Paint()
-      ..color = AppColors.ink
-      ..strokeWidth = 1.6;
-    canvas.drawLine(Offset(0, c.dy), Offset(size.width, c.dy), line);
-    canvas.drawLine(Offset(c.dx, 0), Offset(c.dx, size.height), line);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// شريط أشكال هندسية ملونة (دواير ومثلثات ومربعات) - بيتحط تحت الشاشات والكروت
-class ShapesStrip extends StatelessWidget {
-  final double height;
-  const ShapesStrip({super.key, this.height = 16});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: CustomPaint(painter: _StripPainter()),
-    );
-  }
-}
-
-class _StripPainter extends CustomPainter {
-  static const _colors = [AppColors.yellow, AppColors.sky, AppColors.red, AppColors.green, AppColors.violet];
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final s = size.height * 0.7;          // مقاس الشكل
-    final step = size.height * 1.6;       // المسافة بين الأشكال
-    final y = size.height / 2;
-    final border = Paint()
-      ..color = AppColors.ink
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = max(1.2, size.height * 0.09);
-    var i = 0;
-    for (double x = step / 2; x < size.width; x += step, i++) {
-      final fill = Paint()..color = _colors[i % _colors.length];
-      final c = Offset(x, y);
-      switch (i % 3) {
-        case 0:
-          canvas.drawCircle(c, s / 2, fill);
-          canvas.drawCircle(c, s / 2, border);
-          break;
-        case 1:
-          final path = Path()
-            ..moveTo(c.dx, c.dy - s / 2)
-            ..lineTo(c.dx + s / 2, c.dy + s / 2)
-            ..lineTo(c.dx - s / 2, c.dy + s / 2)
-            ..close();
-          canvas.drawPath(path, fill);
-          canvas.drawPath(path, border);
-          break;
-        default:
-          final r = Rect.fromCenter(center: c, width: s, height: s);
-          canvas.drawRect(r, fill);
-          canvas.drawRect(r, border);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// صندوق مدوّر بحدود سودا وظل صلب
+/// صندوق كريمي بحدود غامقة وظل صلب
 class BrutalBox extends StatelessWidget {
   final Widget child;
   final EdgeInsets padding;
@@ -214,7 +199,92 @@ class BrutalBox extends StatelessWidget {
   }
 }
 
-/// الزرار الكبير: أصفر مدوّر + دايرة سودا فيها سهم (زي "I'm Done!")
+/// شباك كمبيوتر قديم: شريط عنوان ملون فيه اسم + أزرار _ □ ✕، وتحته المحتوى
+class RetroWindow extends StatelessWidget {
+  final String title;
+  final Color barColor;
+  final Widget child;
+  final EdgeInsets padding;
+  final Color color;
+  const RetroWindow({
+    super.key,
+    required this.title,
+    required this.child,
+    this.barColor = AppColors.teal,
+    this.padding = const EdgeInsets.all(14),
+    this.color = AppColors.paper,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: Brutal.box(color: color),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          WindowBar(title: title, color: barColor),
+          Padding(padding: padding, child: child),
+        ],
+      ),
+    );
+  }
+}
+
+/// شريط عنوان الشباك لوحده
+class WindowBar extends StatelessWidget {
+  final String title;
+  final Color color;
+  final double height;
+  const WindowBar({super.key, required this.title, this.color = AppColors.teal, this.height = 30});
+
+  @override
+  Widget build(BuildContext context) {
+    final iconSize = height * 0.42;
+    return Container(
+      height: height,
+      padding: EdgeInsets.symmetric(horizontal: height * 0.3),
+      decoration: BoxDecoration(
+        color: color,
+        border: const Border(bottom: BorderSide(color: AppColors.ink, width: Brutal.border)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: pixelStyle(size: height * 0.45, weight: FontWeight.w600),
+            ),
+          ),
+          // أزرار الشباك _ □ ✕ (للشكل بس)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            textDirection: TextDirection.ltr,
+            children: [
+              Container(width: iconSize, height: 2, margin: EdgeInsets.only(top: iconSize * 0.8), color: AppColors.ink),
+              SizedBox(width: iconSize * 0.6),
+              Container(
+                width: iconSize,
+                height: iconSize,
+                decoration: BoxDecoration(border: Border.all(color: AppColors.ink, width: 1.8)),
+              ),
+              SizedBox(width: iconSize * 0.6),
+              Icon(Icons.close, size: iconSize * 1.3, color: AppColors.ink),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =================================================================
+// الزراير
+// =================================================================
+
+/// الزرار الكبير: لون مليان بحدود غامقة وظل صلب، وجنبه مربع فيه سهم
 class BrutalButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
@@ -237,37 +307,26 @@ class BrutalButton extends StatelessWidget {
     return _Pressable(
       onTap: onTap,
       builder: (pressed) => AnimatedContainer(
-        duration: const Duration(milliseconds: 90),
-        curve: Curves.easeOut,
+        duration: const Duration(milliseconds: 80),
         height: height,
         // لما تدوس الزرار بينزل مكان الظل كأنه اتضغط فعلاً
         transform: Matrix4.translationValues(pressed ? 3 : 0, pressed ? 3 : 0, 0),
-        padding: EdgeInsets.symmetric(horizontal: height * 0.16),
-        decoration: Brutal.box(
-          color: color,
-          radius: height * 0.32,
-          shadowOffset: pressed ? const Offset(1, 1) : Brutal.shadow,
-        ),
+        padding: EdgeInsets.all(height * 0.1),
+        decoration: Brutal.box(color: color, shadowOffset: pressed ? const Offset(1, 1) : Brutal.shadow),
         child: Row(
           children: [
-            if (showArrow) SizedBox(width: height * 0.62),
+            if (showArrow) SizedBox(width: height * 0.8),
             Expanded(
               child: Center(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w800, color: AppColors.ink),
-                ),
+                child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: pixelStyle(size: fontSize)),
               ),
             ),
             if (showArrow)
               Container(
-                width: height * 0.62,
-                height: height * 0.62,
-                decoration: const BoxDecoration(color: AppColors.ink, shape: BoxShape.circle),
+                width: height * 0.8,
+                decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(3)),
                 // arrow_forward بيتقلب لوحده في العربي فيشاور شمال (اتجاه القراءة)
-                child: Icon(Icons.arrow_forward_rounded, color: Colors.white, size: height * 0.38),
+                child: Icon(Icons.arrow_forward_rounded, color: AppColors.paper, size: height * 0.42),
               ),
           ],
         ),
@@ -276,7 +335,7 @@ class BrutalButton extends StatelessWidget {
   }
 }
 
-/// زرار صغير مدوّر بحدود سودا (للشريط العلوي)
+/// زرار صغير (للشريط العلوي)
 class SquareButton extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
@@ -288,20 +347,15 @@ class SquareButton extends StatelessWidget {
     return _Pressable(
       onTap: onTap,
       builder: (pressed) => AnimatedContainer(
-        duration: const Duration(milliseconds: 90),
+        duration: const Duration(milliseconds: 80),
         height: 40,
         constraints: const BoxConstraints(minWidth: 40),
         padding: const EdgeInsets.symmetric(horizontal: 10),
         alignment: Alignment.center,
         transform: Matrix4.translationValues(pressed ? 2 : 0, pressed ? 2 : 0, 0),
-        decoration: Brutal.box(
-          color: color,
-          borderWidth: 2,
-          radius: 14,
-          shadowOffset: pressed ? Offset.zero : const Offset(2, 2),
-        ),
+        decoration: Brutal.box(color: color, borderWidth: 2, shadowOffset: pressed ? Offset.zero : const Offset(2, 2)),
         child: DefaultTextStyle.merge(
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.ink),
+          style: pixelStyle(size: 14),
           child: IconTheme.merge(data: const IconThemeData(color: AppColors.ink, size: 20), child: child),
         ),
       ),
@@ -319,38 +373,35 @@ class LangToggle extends StatelessWidget {
     Widget segment(String label, AppLang value) {
       final active = game.lang == value;
       return AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        height: 30,
+        duration: const Duration(milliseconds: 160),
+        height: 34,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: active ? AppColors.yellow : Colors.transparent,
-          borderRadius: BorderRadius.circular(99),
-          border: active ? Border.all(color: AppColors.ink, width: 1.6) : null,
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.ink),
-        ),
+        color: active ? AppColors.yellow : Colors.transparent,
+        child: Text(label, style: pixelStyle(size: 13)),
       );
     }
 
     return GestureDetector(
       onTap: game.toggleLang,
       child: Container(
-        padding: const EdgeInsets.all(3),
-        decoration: Brutal.box(borderWidth: 2, radius: 99, shadowOffset: const Offset(2, 2)),
+        clipBehavior: Clip.antiAlias,
+        decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(2, 2)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           textDirection: TextDirection.ltr, // ترتيب ثابت مهما كانت اللغة
-          children: [segment('عربي', AppLang.ar), segment('Franco', AppLang.franco)],
+          children: [
+            segment('عربي', AppLang.ar),
+            Container(width: 2, height: 34, color: AppColors.ink),
+            segment('Franco', AppLang.franco),
+          ],
         ),
       ),
     );
   }
 }
 
-/// عنوان كبير (زي "Sepideh just finished her challenge")
+/// عنوان كبير بخط البيكسل
 class Headline extends StatelessWidget {
   final String text;
   final double size;
@@ -359,18 +410,13 @@ class Headline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      textAlign: align,
-      style: TextStyle(
-        fontSize: size,
-        fontWeight: FontWeight.w800,
-        color: AppColors.ink,
-        height: 1.15,
-      ),
-    );
+    return Text(text, textAlign: align, style: pixelStyle(size: size));
   }
 }
+
+// =================================================================
+// حركات
+// =================================================================
 
 /// يكبّر ويصغّر العنصر بشكل متكرر (نبض) - بنستخدمه للتنبيه
 class Pulse extends StatefulWidget {

@@ -133,7 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Container(
                             height: 200,
                             padding: const EdgeInsets.all(10),
-                            decoration: Brutal.box(shadowOffset: const Offset(6, 6)),
                             child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
                           ),
                         ),
@@ -147,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           emoji: '📱',
                           title: game.t(UiText.singleDevice),
                           description: game.t(UiText.singleDeviceDesc),
-                          color: AppColors.yellow,
+                          color: AppColors.teal,
                           onTap: game.chooseSingleDevice,
                         ),
                         const SizedBox(height: 16),
@@ -155,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           emoji: '📲',
                           title: game.t(UiText.multiDevice),
                           description: game.t(UiText.multiDeviceDesc),
-                          color: AppColors.paper,
+                          color: AppColors.orange,
                           onTap: _multi,
                         ),
                         const SizedBox(height: 28),
@@ -181,59 +180,34 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
+    // شباك كمبيوتر قديم: شريط عنوان ملون + المحتوى
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: Brutal.box(color: color),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      // الإيموجي في دايرة (زي صور البروفايل في التصميم)
-                      Container(
-                        width: 52,
-                        height: 52,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: color == AppColors.yellow ? AppColors.paper : AppColors.yellow,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.ink, width: 2),
-                        ),
-                        child: FittedBox(child: Padding(padding: const EdgeInsets.all(6), child: Text(emoji, style: const TextStyle(fontSize: 24)))),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(title.toUpperCase(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-                            Text(description, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // سهم في دايرة سودا
-              Center(
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  margin: const EdgeInsetsDirectional.only(end: 14),
-                  decoration: const BoxDecoration(color: AppColors.ink, shape: BoxShape.circle),
-                  // arrow_forward بيتقلب لوحده في العربي
-                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22),
-                ),
-              ),
-            ],
-          ),
+      child: RetroWindow(
+        title: title,
+        barColor: color,
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // الإيموجي في مربع
+            Container(
+              width: 50,
+              height: 50,
+              alignment: Alignment.center,
+              decoration: Brutal.box(color: AppColors.bg, borderWidth: 2, shadowOffset: Offset.zero),
+              child: Text(emoji, style: const TextStyle(fontSize: 24)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(description, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
+            const SizedBox(width: 8),
+            // سهم في مربع غامق (arrow_forward بيتقلب لوحده في العربي)
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(4)),
+              child: const Icon(Icons.arrow_forward_rounded, color: AppColors.paper, size: 22),
+            ),
+          ],
         ),
       ),
     );
@@ -241,12 +215,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// صندوق الدخول بكود قعدة
   Widget _joinBox() {
-    return BrutalBox(
+    return RetroWindow(
+      title: game.t(UiText.joinTitle),
+      barColor: AppColors.pink,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(game.t(UiText.joinTitle).toUpperCase(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
