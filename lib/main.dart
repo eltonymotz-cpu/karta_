@@ -18,6 +18,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config.dart';
+import 'data/game_modes.dart';
 import 'game/game_controller.dart';
 import 'screens/admin_screen.dart';
 import 'screens/game_screen.dart';
@@ -97,6 +98,13 @@ class _KartaAppState extends State<KartaApp> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // نحمّل صورة اللوجو من الأول، عشان ضهر الكارت يظهر من غير تأخير
+    precacheImage(const AssetImage('assets/images/logo.png'), context);
+  }
+
+  @override
   void dispose() {
     game.dispose();
     super.dispose();
@@ -112,9 +120,40 @@ class _KartaAppState extends State<KartaApp> {
       // اتجاه الكتابة حسب اللغة: العربي يمين، والفرانكو شمال
       builder: (context, child) => ListenableBuilder(
         listenable: game,
-        builder: (context, _) => Directionality(textDirection: game.textDirection, child: child!),
+        builder: (context, _) => Directionality(
+          textDirection: game.textDirection,
+          child: Stack(children: [child!, const _FontWarmup()]),
+        ),
       ),
       home: _Root(game: game),
+    );
+  }
+}
+
+/// تسخين الخطوط: على الويب، خط الإيموجي بيتحمّل أول مرة الإيموجي يظهر،
+/// فكان أول ما كارت جديد يتقلب بيستنى التحميل. هنا بنكتب كل الإيموجي والرموز
+/// اللي اللعبة بتستخدمها في ركن الشاشة بشفافية شبه كاملة، فتتحمّل من أول ما التطبيق يفتح.
+class _FontWarmup extends StatelessWidget {
+  const _FontWarmup();
+
+  @override
+  Widget build(BuildContext context) {
+    final emojis = <String>{
+      for (final mode in allModes.values) ...[
+        mode.emoji,
+        for (final rule in mode.rules.values) rule.emoji,
+      ],
+      ...['🃏', '💣', '💥', '👏', '🤐', '🎁', '📱', '📲', '👆', '🙌', '⚠️', '🔒', '🏆', '🤡', '♠', '♥', '♦', '♣'],
+    }.join(' ');
+    return Positioned(
+      left: 0,
+      top: 0,
+      child: IgnorePointer(
+        child: Opacity(
+          opacity: 0.01,
+          child: Text(emojis, style: const TextStyle(fontSize: 6, fontWeight: FontWeight.w800)),
+        ),
+      ),
     );
   }
 }

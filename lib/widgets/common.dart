@@ -421,7 +421,8 @@ class _PulseState extends State<Pulse> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return ScaleTransition(
       scale: Tween(begin: 1.0, end: widget.scale).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
-      child: widget.child,
+      // RepaintBoundary: النبض بيكبّر صورة جاهزة بدل ما يعيد رسم العنصر كل فريم
+      child: RepaintBoundary(child: widget.child),
     );
   }
 }

@@ -29,14 +29,19 @@ class BigCard extends StatelessWidget {
         // نسيب مكان للظل الصلب تحت ويمين الكارت
         const shadow = 6.0;
         // أكبر مقاس يدخل في المساحة المتاحة مع الحفاظ على نسبة الكارت 5:7
-        final w = min(constraints.maxWidth - shadow, (constraints.maxHeight - shadow) * 5 / 7);
+        final w = min(
+          constraints.maxWidth - shadow,
+          (constraints.maxHeight - shadow) * 5 / 7,
+        );
         final h = w * 7 / 5;
 
         final card = game.currentCard;
         // مفتاح الوش: لما يتغير، الكارت بيتقلب
         final faceKey = card == null ? 'back' : 'front-${card.label}';
         // لون إطار الكارت: لون الكارت المسحوب، أو أصفر لضهر الكارت
-        final frameColor = card == null ? AppColors.paper : styleFor(card.rank).tint;
+        final frameColor = card == null
+            ? AppColors.paper
+            : styleFor(card.rank).tint;
 
         return Center(
           child: SizedBox(
@@ -47,12 +52,21 @@ class BigCard extends StatelessWidget {
               child: GestureDetector(
                 onTap: game.tapCard, // كل الضغطات على الكارت
                 child: AnimatedSwitcher(
-                  // مدة القلبة كلها 340 مللي ثانية (سريعة وناعمة)
-                  duration: const Duration(milliseconds: 340),
+                  // مدة القلبة كلها ربع ثانية (أسرع قلبة وفضلت ناعمة)
+                  duration: const Duration(milliseconds: 250),
                   // الوش القديم يلف في أول نص الوقت، والجديد في النص التاني
-                  switchInCurve: const Interval(0.5, 1, curve: Curves.easeOutCubic),
-                  switchOutCurve: const Interval(0.5, 1, curve: Curves.easeInCubic),
-                  transitionBuilder: (child, animation) => _flipTransition(child, animation, faceKey),
+                  switchInCurve: const Interval(
+                    0.5,
+                    1,
+                    curve: Curves.easeOutQuad,
+                  ),
+                  switchOutCurve: const Interval(
+                    0.5,
+                    1,
+                    curve: Curves.easeInQuad,
+                  ),
+                  transitionBuilder: (child, animation) =>
+                      _flipTransition(child, animation, faceKey),
                   layoutBuilder: (current, previous) => Stack(
                     alignment: Alignment.topLeft,
                     // ?current = ضيفه للقائمة بس لو مش null
@@ -60,13 +74,27 @@ class BigCard extends StatelessWidget {
                   ),
                   child: KeyedSubtree(
                     key: ValueKey(faceKey),
-                    child: _CardFrame(
-                      width: w,
-                      height: h,
-                      color: frameColor,
-                      child: card == null
-                          ? _CardBack(width: w, deckCount: game.deck.length, game: game)
-                          : _CardFront(width: w, card: card, rule: game.currentRule!, phase: game.phase, game: game),
+                    // كل وش بيترسم مرة واحدة كصورة، وأثناء القلبة بنلف الصورة بس
+                    // من غير ما نعيد رسم الكلام والنقشات في كل فريم (ده سر النعومة)
+                    child: RepaintBoundary(
+                      child: _CardFrame(
+                        width: w,
+                        height: h,
+                        color: frameColor,
+                        child: card == null
+                            ? _CardBack(
+                                width: w,
+                                deckCount: game.deck.length,
+                                game: game,
+                              )
+                            : _CardFront(
+                                width: w,
+                                card: card,
+                                rule: game.currentRule!,
+                                phase: game.phase,
+                                game: game,
+                              ),
+                      ),
                     ),
                   ),
                 ),
@@ -79,7 +107,11 @@ class BigCard extends StatelessWidget {
   }
 
   /// حركة القلب ثلاثية الأبعاد حوالين المحور الرأسي
-  Widget _flipTransition(Widget child, Animation<double> animation, String currentKey) {
+  Widget _flipTransition(
+    Widget child,
+    Animation<double> animation,
+    String currentKey,
+  ) {
     final isIncoming = child.key == ValueKey(currentKey);
     return AnimatedBuilder(
       animation: animation,
@@ -104,7 +136,12 @@ class _CardFrame extends StatelessWidget {
   final double width, height;
   final Color color;
   final Widget child;
-  const _CardFrame({required this.width, required this.height, required this.color, required this.child});
+  const _CardFrame({
+    required this.width,
+    required this.height,
+    required this.color,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -112,8 +149,16 @@ class _CardFrame extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      decoration: Brutal.box(color: color, borderWidth: 2.5, shadowOffset: const Offset(6, 6), radius: radius),
-      child: ClipRRect(borderRadius: BorderRadius.circular(radius - 2.5), child: child),
+      decoration: Brutal.box(
+        color: color,
+        borderWidth: 2.5,
+        shadowOffset: const Offset(6, 6),
+        radius: radius,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius - 2.5),
+        child: child,
+      ),
     );
   }
 }
@@ -125,7 +170,11 @@ class _CardBack extends StatelessWidget {
   final double width;
   final int deckCount;
   final GameController game;
-  const _CardBack({required this.width, required this.deckCount, required this.game});
+  const _CardBack({
+    required this.width,
+    required this.deckCount,
+    required this.game,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -134,8 +183,16 @@ class _CardBack extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         // زينة هندسية
-        Positioned(top: w * 0.05, right: w * 0.05, child: const DotGrid(columns: 4, rows: 3)),
-        Positioned(top: w * 0.04, left: w * 0.04, child: const ShapeAccent(size: 10)),
+        Positioned(
+          top: w * 0.05,
+          right: w * 0.05,
+          child: const DotGrid(columns: 4, rows: 3),
+        ),
+        Positioned(
+          top: w * 0.04,
+          left: w * 0.04,
+          child: const ShapeAccent(size: 10),
+        ),
         Positioned(
           bottom: w * 0.13,
           left: -w * 0.06,
@@ -144,7 +201,10 @@ class _CardBack extends StatelessWidget {
         Positioned(
           top: w * 0.32,
           right: -w * 0.05,
-          child: Transform.rotate(angle: 0.4, child: _square(w * 0.12, AppColors.red)),
+          child: Transform.rotate(
+            angle: 0.4,
+            child: _square(w * 0.12, AppColors.red),
+          ),
         ),
         // عدد الكروت الباقية فوق
         Positioned(
@@ -153,11 +213,23 @@ class _CardBack extends StatelessWidget {
           right: 0,
           child: Center(
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: w * 0.008),
-              decoration: Brutal.box(color: AppColors.sky, borderWidth: 2, radius: 99, shadowOffset: Offset.zero),
+              padding: EdgeInsets.symmetric(
+                horizontal: w * 0.04,
+                vertical: w * 0.008,
+              ),
+              decoration: Brutal.box(
+                color: AppColors.sky,
+                borderWidth: 2,
+                radius: 99,
+                shadowOffset: Offset.zero,
+              ),
               child: Text(
                 '🃏 $deckCount ${game.t(UiText.cardsLeft)}',
-                style: TextStyle(fontSize: w * 0.042, fontWeight: FontWeight.w800, color: AppColors.ink),
+                style: TextStyle(
+                  fontSize: w * 0.042,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                ),
               ),
             ),
           ),
@@ -176,33 +248,56 @@ class _CardBack extends StatelessWidget {
             child: Pulse(
               scale: 1.07,
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: w * 0.07, vertical: w * 0.022),
-                decoration: Brutal.box(color: AppColors.yellow, radius: 99, shadowOffset: const Offset(3, 3)),
+                padding: EdgeInsets.symmetric(
+                  horizontal: w * 0.07,
+                  vertical: w * 0.022,
+                ),
+                decoration: Brutal.box(
+                  color: AppColors.yellow,
+                  radius: 99,
+                  shadowOffset: const Offset(3, 3),
+                ),
                 child: Text(
                   game.t(UiText.tapToDraw),
-                  style: TextStyle(fontSize: w * 0.055, fontWeight: FontWeight.w800, color: AppColors.ink),
+                  style: TextStyle(
+                    fontSize: w * 0.055,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
             ),
           ),
         ),
         // شريط الأشكال تحت
-        Positioned(left: w * 0.04, right: w * 0.04, bottom: w * 0.025, child: ShapesStrip(height: w * 0.045)),
+        Positioned(
+          left: w * 0.04,
+          right: w * 0.04,
+          bottom: w * 0.025,
+          child: ShapesStrip(height: w * 0.045),
+        ),
       ],
     );
   }
 
   Widget _circle(double size, Color color) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: AppColors.ink, width: 2)),
-      );
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: color,
+      shape: BoxShape.circle,
+      border: Border.all(color: AppColors.ink, width: 2),
+    ),
+  );
 
   Widget _square(double size, Color color) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, border: Border.all(color: AppColors.ink, width: 2)),
-      );
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: color,
+      border: Border.all(color: AppColors.ink, width: 2),
+    ),
+  );
 }
 
 // =================================================================
@@ -235,7 +330,9 @@ class _CardFront extends StatelessWidget {
     return Stack(
       children: [
         // النقشة الهندسية الخاصة بالكارت ده
-        Positioned.fill(child: CardDecor(style: style, seed: card.rank.hashCode)),
+        Positioned.fill(
+          child: CardDecor(style: style, seed: card.rank.hashCode),
+        ),
         // الركن اللي فوق على الشمال
         Positioned(top: w * 0.035, left: w * 0.05, child: _corner(w)),
         // الركن اللي تحت على اليمين (مقلوب)
@@ -254,7 +351,10 @@ class _CardFront extends StatelessWidget {
               switchOutCurve: Curves.easeInCubic,
               transitionBuilder: (child, anim) => FadeTransition(
                 opacity: anim,
-                child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(anim), child: child),
+                child: ScaleTransition(
+                  scale: Tween(begin: 0.94, end: 1.0).animate(anim),
+                  child: child,
+                ),
               ),
               child: KeyedSubtree(key: ValueKey(phase), child: _content(w)),
             ),
@@ -269,9 +369,19 @@ class _CardFront extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(card.rank,
-            style: TextStyle(fontSize: w * 0.1, fontWeight: FontWeight.w800, color: AppColors.ink, height: 1)),
-        Text(card.suit, style: TextStyle(fontSize: w * 0.075, color: suitColor, height: 1.1)),
+        Text(
+          card.rank,
+          style: TextStyle(
+            fontSize: w * 0.1,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink,
+            height: 1,
+          ),
+        ),
+        Text(
+          card.suit,
+          style: TextStyle(fontSize: w * 0.075, color: suitColor, height: 1.1),
+        ),
       ],
     );
   }
@@ -284,7 +394,11 @@ class _CardFront extends StatelessWidget {
       case CardPhase.bombTicking:
         return _bigMessage(
           w,
-          emoji: Pulse(scale: 1.15, duration: const Duration(milliseconds: 500), child: _emojiCircle(w, '💣', w * 0.3)),
+          emoji: Pulse(
+            scale: 1.15,
+            duration: const Duration(milliseconds: 500),
+            child: _emojiCircle(w, '💣', w * 0.3),
+          ),
           title: game.t(UiText.passPhone),
           subtitle: game.t(UiText.anyMoment),
         );
@@ -322,7 +436,9 @@ class _CardFront extends StatelessWidget {
 
   /// عرض القاعدة: إيموجي + عنوان + شرح + تلميح للضغطة الجاية
   Widget _ruleView(double w) {
-    final description = fillText(rule.description, {'player': game.currentPlayer.name});
+    final description = fillText(rule.description, {
+      'player': game.currentPlayer.name,
+    });
     final hint = switch (rule.type) {
       RuleType.assign => UiText.tapToChoose,
       RuleType.free => UiText.tapToGive,
@@ -348,7 +464,11 @@ class _CardFront extends StatelessWidget {
                   children: [
                     _emojiCircle(w, rule.emoji, w * 0.24),
                     SizedBox(height: w * 0.045),
-                    Headline(game.t(rule.title), size: w * 0.095, align: TextAlign.center),
+                    Headline(
+                      game.t(rule.title),
+                      size: w * 0.095,
+                      align: TextAlign.center,
+                    ),
                     SizedBox(height: w * 0.025),
                     Text(
                       game.t(description),
@@ -378,64 +498,83 @@ class _CardFront extends StatelessWidget {
     final gap = w * 0.03;
 
     // LayoutBuilder بيدينا العرض الحقيقي المتاح، فنقسمه على عمودين بالظبط
-    return LayoutBuilder(builder: (context, constraints) {
-      final fullWidth = constraints.maxWidth - 4; // نسيب مكان للظل
-      final buttonWidth = (fullWidth - gap) / 2 - 1;
-      return SingleChildScrollView(
-        child: Column(
-          children: [
-            Headline(game.t(prompt), size: w * 0.075, align: TextAlign.center),
-            // تحذير الكادو
-            if (game.caduActive)
-              Padding(
-                padding: EdgeInsets.only(top: w * 0.015),
-                child: Text(
-                  game.t(fillText(UiText.caduWarn, {'n': game.caduCards.length})),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: w * 0.042, fontWeight: FontWeight.w800, color: AppColors.red),
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fullWidth = constraints.maxWidth - 4; // نسيب مكان للظل
+        final buttonWidth = (fullWidth - gap) / 2 - 1;
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              Headline(
+                game.t(prompt),
+                size: w * 0.075,
+                align: TextAlign.center,
               ),
-            SizedBox(height: w * 0.045),
-            // زرار لكل لاعب
-            Wrap(
-              spacing: gap,
-              runSpacing: gap,
-              alignment: WrapAlignment.center,
-              children: [
-                for (var i = 0; i < game.players.length; i++) _playerButton(w, i, buttonWidth),
-              ],
-            ),
-            // زرار "محدش خسر"
-            if (game.allowNobody) ...[
+              // تحذير الكادو
+              if (game.caduActive)
+                Padding(
+                  padding: EdgeInsets.only(top: w * 0.015),
+                  child: Text(
+                    game.t(
+                      fillText(UiText.caduWarn, {'n': game.caduCards.length}),
+                    ),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: w * 0.042,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.red,
+                    ),
+                  ),
+                ),
               SizedBox(height: w * 0.045),
-              SizedBox(
-                width: fullWidth,
-                child: BrutalButton(
-                  label: game.t(UiText.nobody),
-                  onTap: game.pickNobody,
-                  showArrow: false,
-                  height: w * 0.13,
-                  fontSize: w * 0.05,
-                ),
+              // زرار لكل لاعب
+              Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (var i = 0; i < game.players.length; i++)
+                    _playerButton(w, i, buttonWidth),
+                ],
               ),
+              // زرار "محدش خسر"
+              if (game.allowNobody) ...[
+                SizedBox(height: w * 0.045),
+                SizedBox(
+                  width: fullWidth,
+                  child: BrutalButton(
+                    label: game.t(UiText.nobody),
+                    onTap: game.pickNobody,
+                    showArrow: false,
+                    height: w * 0.13,
+                    fontSize: w * 0.05,
+                  ),
+                ),
+              ],
             ],
-          ],
-        ),
-      );
-    });
+          ),
+        );
+      },
+    );
   }
 
   /// زرار باسم لاعب: دايرة بلونه + الاسم
   Widget _playerButton(double w, int index, double width) {
     final player = game.players[index];
-    final initial = player.name.isEmpty ? '?' : player.name.characters.first.toUpperCase();
+    final initial = player.name.isEmpty
+        ? '?'
+        : player.name.characters.first.toUpperCase();
     return GestureDetector(
       onTap: () => game.pickLoser(index),
       child: Container(
         width: width,
         height: w * 0.13,
         padding: EdgeInsets.symmetric(horizontal: w * 0.015),
-        decoration: Brutal.box(borderWidth: 2, radius: 99, shadowOffset: const Offset(3, 3)),
+        decoration: Brutal.box(
+          borderWidth: 2,
+          radius: 99,
+          shadowOffset: const Offset(3, 3),
+        ),
         child: Row(
           children: [
             Container(
@@ -447,7 +586,13 @@ class _CardFront extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.ink, width: 1.6),
               ),
-              child: Text(initial, style: TextStyle(fontSize: w * 0.04, fontWeight: FontWeight.w800)),
+              child: Text(
+                initial,
+                style: TextStyle(
+                  fontSize: w * 0.04,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
             Expanded(
               child: Padding(
@@ -457,7 +602,11 @@ class _CardFront extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: w * 0.047, fontWeight: FontWeight.w800, color: AppColors.ink),
+                  style: TextStyle(
+                    fontSize: w * 0.047,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
             ),
@@ -468,8 +617,14 @@ class _CardFront extends StatelessWidget {
   }
 
   /// رسالة كبيرة في نص الكارت (للقنبلة)
-  Widget _bigMessage(double w,
-      {required Widget emoji, required String title, String? subtitle, String? hint, Color titleColor = AppColors.ink}) {
+  Widget _bigMessage(
+    double w, {
+    required Widget emoji,
+    required String title,
+    String? subtitle,
+    String? hint,
+    Color titleColor = AppColors.ink,
+  }) {
     return Column(
       children: [
         Expanded(
@@ -486,14 +641,22 @@ class _CardFront extends StatelessWidget {
                     Text(
                       title,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: w * 0.085, fontWeight: FontWeight.w800, color: titleColor),
+                      style: TextStyle(
+                        fontSize: w * 0.085,
+                        fontWeight: FontWeight.w800,
+                        color: titleColor,
+                      ),
                     ),
                     if (subtitle != null) ...[
                       SizedBox(height: w * 0.02),
                       Text(
                         subtitle,
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: w * 0.05, fontWeight: FontWeight.w700, color: AppColors.muted),
+                        style: TextStyle(
+                          fontSize: w * 0.05,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.muted,
+                        ),
                       ),
                     ],
                   ],
@@ -531,7 +694,11 @@ class _CardFront extends StatelessWidget {
                     Text('👏', style: TextStyle(fontSize: w * 0.19)),
                     Text(
                       game.t(UiText.clapNow),
-                      style: TextStyle(fontSize: w * 0.095, fontWeight: FontWeight.w800, color: AppColors.ink),
+                      style: TextStyle(
+                        fontSize: w * 0.095,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                      ),
                     ),
                   ],
                 ),
@@ -542,7 +709,11 @@ class _CardFront extends StatelessWidget {
         Text(
           game.t(UiText.lastClapLoses),
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: w * 0.045, fontWeight: FontWeight.w800, color: AppColors.ink),
+          style: TextStyle(
+            fontSize: w * 0.045,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink,
+          ),
         ),
       ],
     );
@@ -552,11 +723,20 @@ class _CardFront extends StatelessWidget {
   Widget _hintPill(double w, String text) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: w * 0.016),
-      decoration: Brutal.box(color: AppColors.yellow, borderWidth: 2, radius: 99, shadowOffset: const Offset(2, 2)),
+      decoration: Brutal.box(
+        color: AppColors.yellow,
+        borderWidth: 2,
+        radius: 99,
+        shadowOffset: const Offset(2, 2),
+      ),
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: w * 0.038, fontWeight: FontWeight.w800, color: AppColors.ink),
+        style: TextStyle(
+          fontSize: w * 0.038,
+          fontWeight: FontWeight.w800,
+          color: AppColors.ink,
+        ),
       ),
     );
   }
