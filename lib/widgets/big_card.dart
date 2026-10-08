@@ -526,6 +526,16 @@ class _CardFront extends StatelessWidget {
                     ),
                   ),
                 ),
+              // تحذير الكروت اللي على جنب
+              if (game.asideCards.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.only(top: w * 0.015),
+                  child: Text(
+                    game.t(fillText(UiText.asideWarn, {'n': game.asideCards.length})),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: w * 0.042, fontWeight: FontWeight.w800, color: AppColors.red),
+                  ),
+                ),
               SizedBox(height: w * 0.045),
               // زرار لكل لاعب
               Wrap(
@@ -548,6 +558,21 @@ class _CardFront extends StatelessWidget {
                     showArrow: false,
                     height: w * 0.13,
                     fontSize: w * 0.05,
+                  ),
+                ),
+              ],
+              // زرار "مش عارفين؟ حطّه على جنب" (في التصفيق)
+              if (game.canSetAside) ...[
+                SizedBox(height: w * 0.045),
+                SizedBox(
+                  width: fullWidth,
+                  child: BrutalButton(
+                    label: game.t(UiText.setAside),
+                    onTap: game.setAside,
+                    color: AppColors.paper,
+                    showArrow: false,
+                    height: w * 0.13,
+                    fontSize: w * 0.046,
                   ),
                 ),
               ],

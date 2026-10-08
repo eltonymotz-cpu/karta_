@@ -63,6 +63,14 @@ class ResultsScreen extends StatelessWidget {
                             isWinner: ranked[i].cards.length == minCards,
                             isLoser: ranked[i].cards.length == maxCards && maxCards != minCards,
                           ),
+                        if (game.asideCards.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              game.t(fillText(UiText.asideLeft, {'n': game.asideCards.length})),
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
                         if (game.caduCards.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8),

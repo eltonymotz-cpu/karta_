@@ -259,6 +259,8 @@ class _StatusChips extends StatelessWidget {
     final chips = <Widget>[
       if (game.caduActive)
         _chip(game.t(fillText(UiText.caduChip, {'n': game.caduCards.length})), AppColors.yellow),
+      if (game.asideCards.isNotEmpty)
+        _chip(game.t(fillText(UiText.asideChip, {'n': game.asideCards.length})), AppColors.sky),
       // الصامت: لو معاه كارت Q، الشارة بتبقى زرار ننقل بيه الكارت للي كلّمه
       if (game.silentIndex >= 0)
         game.canPassSilence

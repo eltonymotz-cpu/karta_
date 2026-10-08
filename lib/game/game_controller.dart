@@ -65,6 +65,7 @@ class GameController extends ChangeNotifier {
   CardRule? currentRule;                // قاعدة الكارت المسحوب
   CardPhase phase = CardPhase.back;     // مرحلة الكارت
   final List<PlayingCard> caduCards = []; // كروت الكادو المستنية أول خسران
+  final List<PlayingCard> asideCards = []; // كروت اتحطت على جنب (مش عارفين مين خسر) - أول خسران ياخدها
   int silentIndex = -1;                 // رقم اللاعب في وضع الصمت (-1 = محدش)
   PlayingCard? silentCard;              // كارت الـ Q اللي مع الصامت (بيتنقل للي يكلّمه)
   final List<LText> log = [];           // سجل الأحداث (الأحدث في الأول)
@@ -105,6 +106,10 @@ class GameController extends ChangeNotifier {
 
   /// هل ينفع ننقل كارت الصمت دلوقتي؟ (فيه حد صامت ومعاه الكارت، وإحنا مش متفرجين)
   bool get canPassSilence => !isViewer && silentIndex >= 0 && silentCard != null;
+
+  /// هل نعرض زرار "مش عارفين؟ حطّه على جنب"؟ (في كروت التصفيق وقت اختيار الخسران)
+  bool get canSetAside =>
+      !isViewer && phase == CardPhase.choosing && currentRule?.type == RuleType.clap;
 
   /// هل نعرض زرار "محدش خسر"؟ (بس في القواعد من نوع assign)
   bool get allowNobody => currentRule?.type == RuleType.assign;
@@ -204,6 +209,7 @@ class GameController extends ChangeNotifier {
     currentRule = null;
     phase = CardPhase.back;
     caduCards.clear();
+    asideCards.clear();
     silentIndex = -1;
     silentCard = null;
     log.clear();
@@ -385,6 +391,7 @@ class GameController extends ChangeNotifier {
       _addLog(UiText.logCadu, {'name': to.name, 'cards': caduCards.map((c) => c.label).join(' ')});
       caduCards.clear();
     }
+    _giveAsideCards(to);
 
     silentIndex = toIndex;
     sound.playPenalty();
@@ -410,10 +417,19 @@ class GameController extends ChangeNotifier {
       _addLog(UiText.logCadu, {'name': player.name, 'cards': caduCards.map((c) => c.label).join(' ')});
       caduCards.clear();
     }
+    _giveAsideCards(player);
 
     sound.playPenalty(); // مرة بطة، مرة زمارة، مرة بوم...
     HapticFeedback.mediumImpact();
     _nextTurn();
+  }
+
+  /// الخسران ياخد الكروت اللي اتحطت على جنب (لو فيه)
+  void _giveAsideCards(Player player) {
+    if (asideCards.isEmpty) return;
+    player.cards.addAll(asideCards);
+    _addLog(UiText.logAsideTaken, {'name': player.name, 'cards': asideCards.map((c) => c.label).join(' ')});
+    asideCards.clear();
   }
 
   /// محدش خسر: الكارت يتحرق
@@ -424,8 +440,19 @@ class GameController extends ChangeNotifier {
     _nextTurn();
   }
 
-  /// الانتقال للدور اللي بعده
-  void _nextTurn() {
+  /// مش عارفين مين خسر (في التصفيق): الكارت يتحط على جنب، ونفس اللاعب يعيد الدور،
+  /// وأول حد يخسر بعد كده ياخد الكروت اللي على جنب مع الكارت بتاعه
+  void setAside() {
+    final card = currentCard;
+    if (!canSetAside || card == null) return;
+    asideCards.add(card);
+    _addLog(UiText.logAside, {'card': card.label, 'name': currentPlayer.name});
+    sound.play(Sfx.boing);
+    _nextTurn(sameTurn: true);
+  }
+
+  /// الانتقال للدور اللي بعده (أو إعادة نفس الدور لو sameTurn = true)
+  void _nextTurn({bool sameTurn = false}) {
     _cancelTimers();
     currentCard = null;
     currentRule = null;
@@ -434,7 +461,9 @@ class GameController extends ChangeNotifier {
       finishGame();
       return;
     }
-    currentIndex = (currentIndex + 1) % players.length; // بعد آخر لاعب نرجع للأول
+    if (!sameTurn) {
+      currentIndex = (currentIndex + 1) % players.length; // بعد آخر لاعب نرجع للأول
+    }
     notifyListeners();
   }
 
@@ -499,6 +528,7 @@ class GameController extends ChangeNotifier {
         'rule': currentRule?.toJson(),
         'phase': phase.name,
         'cadu': [for (final c in caduCards) c.label],
+        'aside': [for (final c in asideCards) c.label],
         'silent': silentIndex,
         'log': [for (final l in log.take(40)) l.toJson()],
       };
@@ -536,6 +566,9 @@ class GameController extends ChangeNotifier {
     caduCards
       ..clear()
       ..addAll([for (final l in (s['cadu'] as List? ?? [])) PlayingCard.fromLabel(l as String)]);
+    asideCards
+      ..clear()
+      ..addAll([for (final l in (s['aside'] as List? ?? [])) PlayingCard.fromLabel(l as String)]);
     silentIndex = s['silent'] as int? ?? -1;
     log
       ..clear()

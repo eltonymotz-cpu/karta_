@@ -162,6 +162,12 @@ class UiText {
   static const lastClapLoses = LText('آخر واحد يصقّف ياخد الكارت!', 'Akher wa7ed ysa22af yakhod el kart!');
   static const clapNow = LText('صقّف!', 'SA22AF!');
   static const nobody = LText('🙌 محدش خسر', '🙌 Ma7adesh khesr');
+  static const setAside = LText('🤷 مش عارفين؟ حطّه على جنب', '🤷 Mesh 3arfeen? 7otto 3ala ganb');
+  static const asideChip = LText('📥 على جنب ({n}) • أول خسران ياخدهم', '📥 3ala ganb ({n}) • awel khasran yakhodhom');
+  static const asideWarn = LText('📥 الخسران هياخد كمان {n} كارت من اللي على جنب', '📥 El khasran hayakhod kaman {n} kart men elly 3ala ganb');
+  static const asideLeft = LText('📥 فاضل {n} كارت على جنب من غير صاحب', '📥 Fadel {n} kart 3ala ganb men gher sa7bo');
+  static const logAside = LText('📥 {card} اتحط على جنب و{name} هيعيد الدور', '📥 {card} et7at 3ala ganb w {name} hay3eed el dor');
+  static const logAsideTaken = LText('📥 {name} خد الكروت اللي على جنب: {cards}', '📥 {name} khad el kroot elly 3ala ganb: {cards}');
   static const caduWarn = LText('⚠️ الخسران هياخد الكادو ({n}) معاه!', '⚠️ El khasran hayakhod el kado ({n}) ma3ah!');
 
   // ---------- شاشة النهاية ----------
