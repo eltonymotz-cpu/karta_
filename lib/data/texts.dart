@@ -138,6 +138,14 @@ class UiText {
   static const yourTurn = LText('دورك', 'Dorak');
   static const caduChip = LText('🎁 كادو مستني ({n})', '🎁 Kado mestanny ({n})');
   static const silentChip = LText('🤐 ممنوع تكلموا {name}', '🤐 Mamno3 tkalemo {name}');
+  static const silentChipTap = LText('🤐 {name} صامت • حد كلّمه؟ دوس هنا', '🤐 {name} samet • 7ad kallemo? Dos hena');
+  static const whoTalked = LText('مين كلّم {name}؟', 'Meen kallem {name}?');
+  static const whoTalkedHint = LText('اللي هتختاره ياخد الكارت ويبقى هو الصامت', 'Elly hatekhtaro yakhod el kart w yeb2a howa el samet');
+  static const cancel = LText('إلغاء', 'Elgha2');
+  static const silenceHint = LText('👆 دوس وخد الكارت 🤐', '👆 Dos w khod el kart 🤐');
+  static const logSilentTake = LText('🤐 {name} خد {card} وبقى صامت', '🤐 {name} khad {card} w ba2a samet');
+  static const logSilencePass = LText('🤐 {to} كلّم {from} وخد منه {card}', '🤐 {to} kallem {from} w khad meno {card}');
+  static const typeSilence = LText('صمت (اللي يكلّمه ياخد الكارت)', 'Samt (elly ykallemo yakhod el kart)');
 
   // ---------- الكارت ----------
   static const cardsLeft = LText('كارت فاضل', 'kart fadel');

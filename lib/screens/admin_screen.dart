@@ -490,6 +490,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
         RuleType.cadu => UiText.typeCadu,
         RuleType.bomb => UiText.typeBomb,
         RuleType.clap => UiText.typeClap,
+        RuleType.silence => UiText.typeSilence,
       });
 
   /// خانة كتابة بعنوان صغير فوقها

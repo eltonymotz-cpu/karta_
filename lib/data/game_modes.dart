@@ -10,12 +10,14 @@
 //   free   → صاحب الدور يدي الكارت لأي حد (لازم حد ياخده)
 //   self   → الكارت يروح لصاحب الدور على طول
 //   cadu   → كادو: أول خسران بعد كده ياخد الكارت ده معاه
-//   bomb   → قنبلة موقوتة بوقت مخفي
-//   clap   → اختبار سرعة: آخر واحد يصقف يخسر
+//   bomb    → قنبلة موقوتة بوقت مخفي
+//   clap    → اختبار سرعة: آخر واحد يصقف يخسر
+//   silence → صاحب الدور ياخد الكارت ويبقى صامت، واللي يكلّمه ياخد منه الكارت
+//             ويبقى هو الصامت (بيتنقل بزرار 🤐 فوق)
 // =================================================================
 import 'texts.dart';
 
-enum RuleType { assign, free, self, cadu, bomb, clap }
+enum RuleType { assign, free, self, cadu, bomb, clap, silence }
 
 /// قاعدة كارت واحد
 class CardRule {
@@ -142,12 +144,10 @@ const Map<String, GameMode> builtInModes = {
         emoji: '🤐',
         title: LText('صمت تام', 'Samt Tam'),
         description: LText(
-          'ممنوع حد يكلّم {player} أو يرد عليه! اللي يرد عليه ياخد الكارت. (الصمت مستمر لحد ما تطلع Q جديدة)',
-          'Mamno3 7ad ykallem {player} aw yrod 3aleh! Elly yrod 3aleh yakhod el kart. (El samt mestamer l7ad ma tetla3 Q gdeda)',
+          '{player} خد الكارت وبقى صامت! ممنوع حد يكلّمه أو يرد عليه. اللي يكلّمه ياخد منه الكارت ويبقى هو الصامت (دوسوا على 🤐 فوق).',
+          '{player} khad el kart w ba2a samet! Mamno3 7ad ykallemo aw yrod 3aleh. Elly ykallemo yakhod meno el kart w yeb2a howa el samet (doso 3ala 🤐 fo2).',
         ),
-        type: RuleType.assign,
-        prompt: LText('مين رد عليه؟', 'Meen rad 3aleh?'),
-        setsSilence: true,
+        type: RuleType.silence,
       ),
       'J': CardRule(
         emoji: '💣',

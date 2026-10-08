@@ -255,11 +255,22 @@ class _StatusChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final silentName = game.silentIndex >= 0 ? game.players[game.silentIndex].name : '';
     final chips = <Widget>[
       if (game.caduActive)
         _chip(game.t(fillText(UiText.caduChip, {'n': game.caduCards.length})), AppColors.yellow),
+      // الصامت: لو معاه كارت Q، الشارة بتبقى زرار ننقل بيه الكارت للي كلّمه
       if (game.silentIndex >= 0)
-        _chip(game.t(fillText(UiText.silentChip, {'name': game.players[game.silentIndex].name})), AppColors.paper),
+        game.canPassSilence
+            ? Pulse(
+                scale: 1.04,
+                duration: const Duration(milliseconds: 900),
+                child: GestureDetector(
+                  onTap: () => _askWhoTalked(context, silentName),
+                  child: _chip(game.t(fillText(UiText.silentChipTap, {'name': silentName})), AppColors.paper),
+                ),
+              )
+            : _chip(game.t(fillText(UiText.silentChip, {'name': silentName})), AppColors.paper),
     ];
     if (chips.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -274,6 +285,77 @@ class _StatusChips extends StatelessWidget {
       decoration: Brutal.box(color: color, borderWidth: 2, shadowOffset: const Offset(2, 2)),
       child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.ink)),
     );
+  }
+
+  /// "مين كلّم الصامت؟" → اللي يتختار ياخد الـ Q ويبقى هو الصامت
+  Future<void> _askWhoTalked(BuildContext context, String silentName) async {
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: BrutalBox(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Headline('🤐 ${game.t(fillText(UiText.whoTalked, {'name': silentName}))}', size: 24),
+              const SizedBox(height: 4),
+              Text(game.t(UiText.whoTalkedHint), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 16),
+              // زرار لكل لاعب ماعدا الصامت نفسه
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (var i = 0; i < game.players.length; i++)
+                    if (i != game.silentIndex)
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context, i),
+                        child: Container(
+                          width: 120,
+                          height: 46,
+                          decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(3, 3)),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                decoration: BoxDecoration(
+                                  color: game.players[i].color,
+                                  border: const BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  game.players[i].name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontWeight: FontWeight.w900),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  game.t(UiText.cancel).toUpperCase(),
+                  style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked != null) game.passSilence(picked);
   }
 }
 

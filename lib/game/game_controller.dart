@@ -66,6 +66,7 @@ class GameController extends ChangeNotifier {
   CardPhase phase = CardPhase.back;     // مرحلة الكارت
   final List<PlayingCard> caduCards = []; // كروت الكادو المستنية أول خسران
   int silentIndex = -1;                 // رقم اللاعب في وضع الصمت (-1 = محدش)
+  PlayingCard? silentCard;              // كارت الـ Q اللي مع الصامت (بيتنقل للي يكلّمه)
   final List<LText> log = [];           // سجل الأحداث (الأحدث في الأول)
 
   // ---------------- أدوات داخلية ----------------
@@ -101,6 +102,9 @@ class GameController extends ChangeNotifier {
         return false;
     }
   }
+
+  /// هل ينفع ننقل كارت الصمت دلوقتي؟ (فيه حد صامت ومعاه الكارت، وإحنا مش متفرجين)
+  bool get canPassSilence => !isViewer && silentIndex >= 0 && silentCard != null;
 
   /// هل نعرض زرار "محدش خسر"؟ (بس في القواعد من نوع assign)
   bool get allowNobody => currentRule?.type == RuleType.assign;
@@ -201,6 +205,7 @@ class GameController extends ChangeNotifier {
     phase = CardPhase.back;
     caduCards.clear();
     silentIndex = -1;
+    silentCard = null;
     log.clear();
     _addLog(UiText.logStart, {'mode': mode.name});
     screen = AppScreen.game;
@@ -290,8 +295,12 @@ class GameController extends ChangeNotifier {
     }
     _addLog(UiText.logDraw, {'name': currentPlayer.name, 'card': card.label, 'rule': rule.title});
 
-    // قاعدة الصمت: صاحب الدور يبقى "صامت" (والصمت القديم يتلغي)
-    if (rule.setsSilence) silentIndex = currentIndex;
+    // خيار "يفعّل وضع الصمت" (للأنماط اللي الأدمن بيعملها): صاحب الدور يبقى صامت
+    // من غير كارت بيتنقل (والصمت القديم يتلغي)
+    if (rule.setsSilence) {
+      silentIndex = currentIndex;
+      silentCard = null;
+    }
 
     // صوت خاص لبعض الكروت أول ما تتقلب
     switch (rule.type) {
@@ -336,7 +345,51 @@ class GameController extends ChangeNotifier {
       case RuleType.bomb:
         _startBomb();
         break;
+      case RuleType.silence:
+        _takeSilence();
+        break;
     }
+  }
+
+  // =================================================================
+  // الصمت (Q): الكارت بيتنقل للي يكلّم الصامت
+  // =================================================================
+
+  /// صاحب الدور ياخد الـ Q ويبقى صامت (الصامت القديم بيحتفظ بالـ Q بتاعته)
+  void _takeSilence() {
+    final card = currentCard!;
+    currentPlayer.cards.add(card);
+    silentIndex = currentIndex;
+    silentCard = card;
+    _addLog(UiText.logSilentTake, {'name': currentPlayer.name, 'card': card.label});
+    sound.play(Sfx.boing);
+    HapticFeedback.mediumImpact();
+    _nextTurn();
+  }
+
+  /// حد كلّم الصامت: ياخد منه الـ Q (ومعاها الكادو لو موجود) ويبقى هو الصامت
+  /// (ينفع تتنادى في أي وقت، من زرار 🤐 فوق)
+  void passSilence(int toIndex) {
+    final card = silentCard;
+    if (!canPassSilence || card == null || toIndex == silentIndex) return;
+    final from = players[silentIndex];
+    final to = players[toIndex];
+
+    from.cards.remove(card);
+    to.cards.add(card);
+    _addLog(UiText.logSilencePass, {'from': from.name, 'to': to.name, 'card': card.label});
+
+    // اللي كلّمه خسر، فلو فيه كادو مستني ياخده هو كمان
+    if (caduActive) {
+      to.cards.addAll(caduCards);
+      _addLog(UiText.logCadu, {'name': to.name, 'cards': caduCards.map((c) => c.label).join(' ')});
+      caduCards.clear();
+    }
+
+    silentIndex = toIndex;
+    sound.playPenalty();
+    HapticFeedback.mediumImpact();
+    notifyListeners();
   }
 
   // =================================================================

@@ -422,6 +422,7 @@ class _CardFront extends StatelessWidget {
       RuleType.cadu => UiText.tapNext,
       RuleType.bomb => UiText.tapStartBomb,
       RuleType.clap => UiText.tapToPickLoser,
+      RuleType.silence => UiText.silenceHint,
     };
     final innerWidth = w * 0.88;
 
