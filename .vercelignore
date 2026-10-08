@@ -1,0 +1,7 @@
+# Vercel بيرفع نسخة الويب الجاهزة بس (build/web)
+# قبل الرفع: flutter build web
+/*
+!vercel.json
+!build
+build/*
+!build/web

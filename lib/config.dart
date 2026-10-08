@@ -17,7 +17,7 @@
 class AppConfig {
   static const supabaseUrl = 'https://mimonvumevwapgtyhikg.supabase.co';
   static const supabaseKey = 'sb_publishable_TwMofqSyfIoqatfPsyUOUw_8fPOyhxm';
-  static const joinBaseUrl = '';
+  static const joinBaseUrl = 'https://karta-flame-pi.vercel.app/';
   static const adminPin = '2468';
 
   /// هل Supabase متظبط؟

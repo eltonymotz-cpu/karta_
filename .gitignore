@@ -49,3 +49,5 @@ app.*.map.json
 /alhokm-waraqa.html
 .claude/
 
+.vercel
+.env*

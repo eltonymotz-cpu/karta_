@@ -2,6 +2,17 @@
 
 لعبة كروت للقعدات (Flutter): على موبايل واحد في النص، أو على أكتر من موبايل عن طريق Supabase.
 
+🌐 **العب أونلاين:** https://karta-flame-pi.vercel.app
+
+## رفع نسخة جديدة على Vercel
+
+```
+flutter build web
+vercel.cmd deploy --prod
+```
+
+`vercel.json` و `.vercelignore` بيخلّوا Vercel يرفع فولدر `build/web` الجاهز بس.
+
 ## التشغيل
 
 | الأمر | الوظيفة |
