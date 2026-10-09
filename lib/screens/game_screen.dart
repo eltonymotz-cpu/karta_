@@ -3,6 +3,8 @@
 // -----------------------------------------------------------------
 // الكارت في النص وواخد أكبر مساحة، واللاعيبة قاعدين حواليه على أطراف الشاشة
 // بنفس ترتيب الأدوار مع عقارب الساعة.
+// - الهوست: بيختار الخسران، وبيعمل سكيب، وبيصحح الكروت (دوس على اسم أي لاعب).
+// - موبايل اللاعب: بيختار هو مين، وبيسحب في دوره بس.
 // =================================================================
 import 'dart:math';
 
@@ -14,6 +16,7 @@ import '../models.dart';
 import '../theme.dart';
 import '../widgets/big_card.dart';
 import '../widgets/common.dart';
+import '../widgets/game_fx.dart';
 import '../widgets/player_seat.dart';
 import '../widgets/qr_dialog.dart';
 
@@ -36,11 +39,11 @@ class GameScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     _TopBar(game: game),
-                    // المتفرج اللي لسه مستني صاحب القعدة يبدأ
+                    // موبايل اللاعب اللي لسه مستني صاحب القعدة يبدأ
                     if (game.isViewer && !game.viewerHasState)
                       Expanded(child: _WaitingForHost(game: game))
                     else ...[
-                      if (game.isViewer) _viewerBanner(),
+                      if (game.isViewer) _ViewerBanner(game: game),
                       _StatusChips(game: game),
                       const SizedBox(height: 4),
                       Expanded(child: _Table(game: game)),
@@ -54,24 +57,131 @@ class GameScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  /// شريط صغير بيفكّر المتفرج إنه بيتفرج بس
-  Widget _viewerBanner() {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      color: AppColors.ink,
-      child: Text(
-        game.t(UiText.viewerHint),
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.yellow),
+// =================================================================
+// موبايل اللاعب: إنت مين؟ + دورك ولا لأ
+// =================================================================
+class _ViewerBanner extends StatelessWidget {
+  final GameController game;
+  const _ViewerBanner({required this.game});
+
+  @override
+  Widget build(BuildContext context) {
+    final mine = game.myPlayerIndex;
+    final text = mine == null
+        ? game.t(UiText.pickYourSeat)
+        : game.isMyTurn
+            ? game.t(fillText(UiText.youAreTurn, {'name': game.players[mine].name}))
+            : game.t(fillText(UiText.youAre, {'name': game.players[mine].name}));
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: GestureDetector(
+        onTap: () => _pickSeat(context),
+        child: Pulse(
+          enabled: mine == null || game.isMyTurn,
+          scale: 1.03,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: Brutal.box(
+              color: mine == null ? AppColors.yellow : (game.isMyTurn ? AppColors.green : AppColors.paper),
+              borderWidth: 2,
+              shadowOffset: const Offset(2, 2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.person, size: 18, color: AppColors.ink),
+                const SizedBox(width: 6),
+                Flexible(child: Text(text, style: pixelStyle(size: 14))),
+                const SizedBox(width: 6),
+                const Icon(Icons.swap_horiz, size: 18, color: AppColors.ink),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// اختيار اللاعب اللي الموبايل ده بيمثله
+  Future<void> _pickSeat(BuildContext context) async {
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: RetroWindow(
+          title: game.t(UiText.whoAreYou),
+          barColor: AppColors.yellow,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(game.t(UiText.whoAreYouHint), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              for (var i = 0; i < game.players.length; i++) _seatOption(context, i),
+              if (game.myPlayerIndex != null)
+                TextButton(
+                  onPressed: () => Navigator.pop(context, -1),
+                  child: Text(game.t(UiText.justWatch), style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w800)),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null) return;
+    if (picked < 0) {
+      game.releaseSeat();
+    } else {
+      game.claimSeat(picked);
+    }
+  }
+
+  Widget _seatOption(BuildContext context, int i) {
+    final owner = game.claims[i];
+    final takenByOther = owner != null && owner != game.deviceId;
+    final mine = game.myPlayerIndex == i;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Opacity(
+        opacity: takenByOther ? 0.45 : 1,
+        child: GestureDetector(
+          onTap: takenByOther ? null : () => Navigator.pop(context, i),
+          child: Container(
+            height: 46,
+            clipBehavior: Clip.antiAlias,
+            decoration: Brutal.box(color: mine ? AppColors.yellow : AppColors.paper, borderWidth: 2, shadowOffset: const Offset(2, 2)),
+            child: Row(
+              children: [
+                Container(
+                  width: 14,
+                  decoration: BoxDecoration(
+                    color: game.players[i].color,
+                    border: const BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: Text(game.players[i].name, style: const TextStyle(fontWeight: FontWeight.w800))),
+                if (takenByOther)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(game.t(UiText.seatTaken), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                  ),
+                if (mine) const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.check, size: 18)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
 // =================================================================
-// شاشة انتظار المتفرج: لسه متصلش أو صاحب القعدة لسه في الإعداد
+// شاشة انتظار موبايل اللاعب: لسه متصلش أو صاحب القعدة لسه في الإعداد
 // =================================================================
 class _WaitingForHost extends StatelessWidget {
   final GameController game;
@@ -92,13 +202,12 @@ class _WaitingForHost extends StatelessWidget {
               child: Image.asset('assets/images/logo.png'),
             ),
             const SizedBox(height: 28),
-            Text(game.t(UiText.roomCode).toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+            Text(game.t(UiText.roomCode), style: pixelStyle(size: 13)),
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: Brutal.box(color: AppColors.yellow),
-              child: Text(game.roomCode ?? '',
-                  style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 6)),
+              child: Text(game.roomCode ?? '', textDirection: TextDirection.ltr, style: rankStyle(size: 30)),
             ),
             const SizedBox(height: 24),
             const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(color: AppColors.ink, strokeWidth: 3)),
@@ -120,7 +229,7 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final online = game.room != null; // هوست أو متفرج
+    final online = game.room != null; // هوست أو موبايل لاعب
     return Row(
       textDirection: TextDirection.ltr, // ترتيب ثابت: السجل دايماً على الشمال
       children: [
@@ -131,7 +240,7 @@ class _TopBar extends StatelessWidget {
             children: [
               const Icon(Icons.history),
               // لو فيه أزرار زيادة (QR) نخلي السجل أيقونة بس عشان المساحة
-              if (!online) ...[const SizedBox(width: 4), Text(game.t(UiText.history).toUpperCase())],
+              if (!online) ...[const SizedBox(width: 4), Text(game.t(UiText.history))],
             ],
           ),
         ),
@@ -155,7 +264,7 @@ class _TopBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
         ],
-        // المتفرج: زرار خروج / الهوست: زرار إنهاء اللعبة
+        // موبايل اللاعب: زرار خروج / الهوست: زرار إنهاء اللعبة
         SquareButton(
           onTap: game.isViewer ? game.goHome : () => _confirmEnd(context),
           child: Icon(game.isViewer ? Icons.logout : Icons.close),
@@ -180,16 +289,12 @@ class _TopBar extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const ShapesStrip(height: 10),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Headline(game.t(UiText.history), size: 28),
-              ),
+              WindowBar(title: game.t(UiText.history), color: AppColors.teal),
               Expanded(
                 child: game.log.isEmpty
                     ? Center(child: Text(game.t(UiText.noHistory), style: const TextStyle(color: AppColors.muted)))
                     : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                         itemCount: game.log.length,
                         separatorBuilder: (_, _) => const Divider(color: AppColors.line, height: 1),
                         itemBuilder: (context, i) => Padding(
@@ -214,39 +319,42 @@ class _TopBar extends StatelessWidget {
 
   /// تأكيد إنهاء اللعبة
   Future<void> _confirmEnd(BuildContext context) async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: BrutalBox(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Headline(game.t(UiText.confirmEnd), size: 24),
-              const SizedBox(height: 20),
-              BrutalButton(label: game.t(UiText.yes), onTap: () => Navigator.pop(context, true), color: AppColors.red),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text(
-                  game.t(UiText.no).toUpperCase(),
-                  style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink, fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (yes == true) game.finishGame();
+    final yes = await confirmDialog(context, game, game.t(UiText.confirmEnd), game.t(UiText.yes));
+    if (yes) game.finishGame();
   }
 }
 
+/// نافذة تأكيد صغيرة (بترجع true لو اتأكد)
+Future<bool> confirmDialog(BuildContext context, GameController game, String title, String confirmLabel) async {
+  final yes = await showDialog<bool>(
+    context: context,
+    builder: (context) => Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: BrutalBox(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Headline(title, size: 22),
+            const SizedBox(height: 20),
+            BrutalButton(label: confirmLabel, onTap: () => Navigator.pop(context, true), color: AppColors.red),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(game.t(UiText.no), style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink, fontSize: 16)),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  return yes == true;
+}
+
 // =================================================================
-// شارات الحالة: الكادو المستني + اللاعب الصامت
+// شارات الحالة + زرار السكيب للهوست
 // =================================================================
 class _StatusChips extends StatelessWidget {
   final GameController game;
@@ -256,12 +364,18 @@ class _StatusChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final silentName = game.silentIndex >= 0 ? game.players[game.silentIndex].name : '';
     final chips = <Widget>[
+      // الهوست: سكيب الكارت الحالي
+      if (game.canSkip)
+        GestureDetector(
+          onTap: game.skipCard,
+          child: _chip('⏭ ${game.t(UiText.skipCard)}', AppColors.orange),
+        ),
       if (game.caduActive)
         _chip(game.t(fillText(UiText.caduChip, {'n': game.caduCards.length})), AppColors.yellow),
       if (game.asideCards.isNotEmpty)
         _chip(game.t(fillText(UiText.asideChip, {'n': game.asideCards.length})), AppColors.blue),
-      // الصامت: لو معاه كارت Q، الشارة بتبقى زرار ننقل بيه الكارت للي كلّمه
-      if (game.silentIndex >= 0)
+      // الصامت: بيظهر بس والكارت مقلوب (وبيختفي طول ما فيه كارت شغال)
+      if (game.showSilenceMarker)
         game.canPassSilence
             ? Pulse(
                 scale: 1.04,
@@ -318,6 +432,7 @@ class _StatusChips extends StatelessWidget {
                         child: Container(
                           width: 120,
                           height: 46,
+                          clipBehavior: Clip.antiAlias,
                           decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(3, 3)),
                           child: Row(
                             children: [
@@ -346,10 +461,7 @@ class _StatusChips extends StatelessWidget {
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text(
-                  game.t(UiText.cancel).toUpperCase(),
-                  style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink),
-                ),
+                child: Text(game.t(UiText.cancel), style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
               ),
             ],
           ),
@@ -361,7 +473,7 @@ class _StatusChips extends StatelessWidget {
 }
 
 // =================================================================
-// الترابيزة: الكارت في النص واللاعيبة حواليه
+// الترابيزة: الكارت في النص واللاعيبة حواليه + طبقة الأنيميشن
 // -----------------------------------------------------------------
 // - على الموبايل: اللاعيبة في قوسين فوق وتحت الكارت (زي ما يكونوا قاعدين
 //   حوالين ترابيزة)، والكارت ياخد عرض الشاشة كله.
@@ -369,10 +481,15 @@ class _StatusChips extends StatelessWidget {
 //   بنقعد لاعيبة يمين وشمال كمان.
 // الترتيب دايماً مع عقارب الساعة: تحت (يمين ← شمال) ← شمال ← فوق ← يمين
 // =================================================================
-class _Table extends StatelessWidget {
+class _Table extends StatefulWidget {
   final GameController game;
   const _Table({required this.game});
 
+  @override
+  State<_Table> createState() => _TableState();
+}
+
+class _TableState extends State<_Table> {
   // توزيع اللاعيبة لما الجناب متاحة: [تحت، شمال، فوق، يمين]
   static const Map<int, List<int>> _sideLayouts = {
     3: [1, 0, 2, 0],
@@ -385,6 +502,121 @@ class _Table extends StatelessWidget {
 
   static const double _sideColumnWidth = 78; // عرض عمود المقاعد الجانبية
   static const double _arcHeight = 16;      // مقدار انحناء القوس
+
+  GameController get game => widget.game;
+
+  // ---------------- الأنيميشن ----------------
+  final GlobalKey _stackKey = GlobalKey();
+  final GlobalKey _cardKey = GlobalKey();
+  final Map<int, GlobalKey> _seatKeys = {};
+  final List<Widget> _fx = [];  // الأنيميشن الشغالة دلوقتي
+  int _fxCounter = 0;
+  int _lastEventId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastEventId = game.lastEvent?.id ?? 0; // مانشغلش أنيميشن لحدث قديم
+    game.addListener(_onGameChanged);
+  }
+
+  @override
+  void didUpdateWidget(_Table old) {
+    super.didUpdateWidget(old);
+    if (old.game != game) {
+      old.game.removeListener(_onGameChanged);
+      game.addListener(_onGameChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    game.removeListener(_onGameChanged);
+    super.dispose();
+  }
+
+  GlobalKey _seatKey(int i) => _seatKeys.putIfAbsent(i, () => GlobalKey());
+
+  /// حدث جديد → نشغّل الأنيميشن بتاعته (بعد ما الشاشة تترسم عشان نعرف الأماكن)
+  void _onGameChanged() {
+    final event = game.lastEvent;
+    if (event == null || event.id == _lastEventId) return;
+    _lastEventId = event.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _play(event));
+  }
+
+  Offset? _centerOf(GlobalKey key) {
+    final stackBox = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    if (stackBox == null || box == null || !box.attached) return null;
+    return stackBox.globalToLocal(box.localToGlobal(box.size.center(Offset.zero)));
+  }
+
+  void _addFx(Widget Function(Key key, VoidCallback done) build) {
+    final key = ValueKey(_fxCounter++);
+    late Widget fx;
+    void remove() {
+      if (mounted && _fx.contains(fx)) setState(() => _fx.remove(fx));
+    }
+
+    fx = build(key, remove);
+    setState(() => _fx.add(fx));
+    // أمان: أي أنيميشن بيتشال بعد 3 ثواني بالكتير حتى لو ماخلصتش لأي سبب
+    Future.delayed(const Duration(seconds: 3), remove);
+  }
+
+  void _play(GameEvent event) {
+    if (!mounted) return;
+    final still = MediaQuery.of(context).disableAnimations;
+    final player = event.player >= 0 && event.player < game.players.length ? game.players[event.player] : null;
+    final seat = player == null ? null : _centerOf(_seatKey(event.player));
+
+    switch (event.kind) {
+      case GameEventKind.loss:
+        final card = _centerOf(_cardKey);
+        // الكارت بيطير لمكان الخسران
+        if (!still && card != null && seat != null) {
+          _addFx((key, done) => FxFlyingCard(key: key, from: card, to: seat, color: player!.color, onDone: done));
+        }
+        if (seat != null) {
+          _addFx((key, done) => FxFloatingLabel(
+                key: key,
+                at: seat,
+                text: '+${max(1, event.count)} 🃏',
+                color: AppColors.red,
+                delay: Duration(milliseconds: still ? 0 : 380),
+                onDone: done,
+              ));
+        }
+        if (player != null) _toast(game.t(fillText(UiText.fxLost, {'name': player.name})), AppColors.red);
+        break;
+      case GameEventKind.correction:
+        if (seat != null) {
+          _addFx((key, done) => FxFloatingLabel(key: key, at: seat, text: '-1 ✔', color: AppColors.green, onDone: done));
+        }
+        if (player != null) _toast(game.t(fillText(UiText.fxCorrected, {'name': player.name})), AppColors.green);
+        break;
+      case GameEventKind.nobody:
+        _toast(game.t(UiText.fxNobody), AppColors.green);
+        break;
+      case GameEventKind.skip:
+        _toast(game.t(UiText.fxSkipped), AppColors.orange);
+        break;
+      case GameEventKind.timeout:
+        _toast('⏰ ${game.t(UiText.timeUp)}', AppColors.yellow);
+        break;
+    }
+  }
+
+  void _toast(String text, Color color) {
+    _addFx((key, done) => Positioned(
+          key: key,
+          top: 2,
+          left: 0,
+          right: 0,
+          child: Center(child: FxToast(text: text, color: color, onDone: done)),
+        ));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -419,29 +651,43 @@ class _Table extends StatelessWidget {
         final top = take(layout[2]);
         final right = take(layout[3]);
 
-        return Column(
+        return Stack(
+          key: _stackKey,
+          clipBehavior: Clip.none,
           children: [
-            // فوق: من الشمال لليمين، والقوس نازل ناحية الكارت على الأطراف
-            _row(top, TextDirection.ltr, isTop: true),
-            Expanded(
-              child: Row(
-                textDirection: TextDirection.ltr, // عشان الشمال يفضل شمال حتى في العربي
-                children: [
-                  // الشمال: من تحت لفوق
-                  if (left.isNotEmpty) _column(left, VerticalDirection.up),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                      child: BigCard(game: game),
-                    ),
+            Column(
+              children: [
+                // فوق: من الشمال لليمين، والقوس نازل ناحية الكارت على الأطراف
+                _row(top, TextDirection.ltr, isTop: true),
+                Expanded(
+                  child: Row(
+                    textDirection: TextDirection.ltr, // عشان الشمال يفضل شمال حتى في العربي
+                    children: [
+                      // الشمال: من تحت لفوق
+                      if (left.isNotEmpty) _column(left, VerticalDirection.up),
+                      Expanded(
+                        child: Padding(
+                          key: _cardKey,
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                          child: BigCard(game: game),
+                        ),
+                      ),
+                      // اليمين: من فوق لتحت
+                      if (right.isNotEmpty) _column(right, VerticalDirection.down),
+                    ],
                   ),
-                  // اليمين: من فوق لتحت
-                  if (right.isNotEmpty) _column(right, VerticalDirection.down),
-                ],
+                ),
+                // تحت: من اليمين للشمال (أول لاعب تحت على اليمين)
+                _row(bottom, TextDirection.rtl, isTop: false),
+              ],
+            ),
+            // الأنيميشن فوق كل حاجة (IgnorePointer: مابتستقبلش ضغطات أبداً،
+            // فمش ممكن تغطي على مقعد لاعب أو على الكارت)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Stack(clipBehavior: Clip.none, children: _fx),
               ),
             ),
-            // تحت: من اليمين للشمال (أول لاعب تحت على اليمين)
-            _row(bottom, TextDirection.rtl, isTop: false),
           ],
         );
       },
@@ -450,14 +696,88 @@ class _Table extends StatelessWidget {
 
   Widget _seat(int index, {required bool vertical}) {
     final Player player = game.players[index];
-    return PlayerSeat(
-      player: player,
-      isCurrent: index == game.currentIndex,
-      isSilent: index == game.silentIndex,
-      clickable: game.canPickLoser,
-      vertical: vertical,
-      turnLabel: game.t(UiText.yourTurn),
-      onTap: () => game.pickLoser(index),
+    return KeyedSubtree(
+      key: _seatKey(index),
+      child: PlayerSeat(
+        player: player,
+        isCurrent: index == game.currentIndex,
+        // علامة الصمت بتختفي طول ما فيه كارت شغال (وبترجع لما الكارت يخلص)
+        isSilent: index == game.silentIndex && game.showSilenceMarker,
+        clickable: game.canPickLoser,
+        isMe: game.isViewer && game.myPlayerIndex == index,
+        vertical: vertical,
+        turnLabel: game.t(UiText.yourTurn),
+        // الهوست: وقت الاختيار الدوسة بتختار الخسران، وغير كده بتفتح تصحيح الكروت
+        onTap: () {
+          if (game.canPickLoser) {
+            game.pickLoser(index);
+          } else if (game.isHost) {
+            _openCorrections(index);
+          }
+        },
+        tappable: game.isHost,
+      ),
+    );
+  }
+
+  /// الهوست: كروت اللاعب + شيل كارت اتدى بالغلط
+  void _openCorrections(int playerIndex) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.bg,
+      shape: const RoundedRectangleBorder(side: BorderSide(color: AppColors.ink, width: Brutal.border)),
+      builder: (sheetContext) => ListenableBuilder(
+        listenable: game,
+        builder: (sheetContext, _) {
+          if (playerIndex >= game.players.length) return const SizedBox.shrink();
+          final player = game.players[playerIndex];
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                WindowBar(title: game.t(fillText(UiText.cardsOf, {'name': player.name})), color: player.color),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Text(game.t(UiText.correctionHint), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+                if (player.cards.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(game.t(UiText.noCards), textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (var i = 0; i < player.cards.length; i++)
+                          InputChip(
+                            label: Text(player.cards[i].label, style: pixelStyle(size: 15)),
+                            backgroundColor: AppColors.paper,
+                            side: const BorderSide(color: AppColors.ink, width: 2),
+                            deleteIcon: const Icon(Icons.close, size: 18, color: AppColors.red),
+                            onDeleted: () async {
+                              final label = player.cards[i].label;
+                              final yes = await confirmDialog(
+                                sheetContext,
+                                game,
+                                game.t(fillText(UiText.removeCardConfirm, {'card': label, 'name': player.name})),
+                                game.t(UiText.removeCard),
+                              );
+                              if (yes) game.removeCardFrom(playerIndex, i);
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 

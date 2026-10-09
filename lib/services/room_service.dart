@@ -30,10 +30,16 @@ class RoomService {
 
   /// فتح قعدة جديدة (للهوست)
   /// onHello: بتتنادى لما متفرج جديد يدخل (عشان نبعتله الحالة)
-  static RoomService host({required String code, required void Function() onHello, void Function()? onConnected}) {
+  /// onAction: طلب من موبايل لاعب (زي "عايز أسحب") - الهوست بيتأكد منه قبل ما ينفذه
+  static RoomService host({
+    required String code,
+    required void Function() onHello,
+    required void Function(Map<String, dynamic> action) onAction,
+    void Function()? onConnected,
+  }) {
     final room = RoomService._(code, true);
     room._open(
-      listeners: {'hello': (_) => onHello()},
+      listeners: {'hello': (_) => onHello(), 'action': onAction},
       onConnected: () {
         onHello(); // نبعت الحالة أول ما نتصل
         onConnected?.call();
@@ -84,6 +90,11 @@ class RoomService {
 
   /// الهوست بيبعت حالة اللعبة لكل المتفرجين
   void sendState(Map<String, dynamic> state) => _send('state', state);
+
+  /// موبايل لاعب بيبعت طلب للهوست (الهوست هو اللي بيقرر ينفذه ولا لأ)
+  void sendAction(Map<String, dynamic> action) {
+    if (!isHost) _send('action', action);
+  }
 
   void _send(String event, Map<String, dynamic> payload) {
     if (!connected) return;

@@ -19,7 +19,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config.dart';
 import 'data/game_modes.dart';
+import 'data/texts.dart';
 import 'game/game_controller.dart';
+import 'game/game_settings.dart';
 import 'screens/admin_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/home_screen.dart';
@@ -96,6 +98,13 @@ class _KartaAppState extends State<KartaApp> {
     // لو التطبيق اتفتح من رابط الـ QR (فيه ?room=CODE) ندخل القعدة على طول كمتفرج
     final code = kIsWeb ? Uri.base.queryParameters['room'] : null;
     if (code != null && code.isNotEmpty && AppConfig.hasSupabase) game.joinRoom(code);
+    // إعدادات اللعبة المحفوظة (مؤقت الأسئلة ومدة القنبلة)
+    GameSettings.load().then((settings) {
+      game.settings = settings;
+      game.modesChanged();
+    });
+    // أي تعديل من لوحة الأدمن (من أي جهاز) بيوصل لايف
+    ModeStore.listen(game.modesChanged);
   }
 
   @override
@@ -124,10 +133,13 @@ class _KartaAppState extends State<KartaApp> {
       // اتجاه الكتابة حسب اللغة: العربي يمين، والفرانكو شمال
       builder: (context, child) => ListenableBuilder(
         listenable: game,
-        builder: (context, _) => Directionality(
-          textDirection: game.textDirection,
-          child: Stack(children: [child!, const _FontWarmup()]),
-        ),
+        builder: (context, _) {
+          PixelFont.arabic = game.lang == AppLang.ar;
+          return Directionality(
+            textDirection: game.textDirection,
+            child: Stack(children: [child!, const _FontWarmup()]),
+          );
+        },
       ),
       home: _Root(game: game),
     );
@@ -160,7 +172,7 @@ class _FontWarmup extends StatelessWidget {
             children: [
               Text(emojis, style: const TextStyle(fontSize: 6, fontWeight: FontWeight.w800)),
               // خط البيكسل كمان (عشان العناوين تظهر بيه من أول مرة)
-              Text('Karta AKQJ 1234567890 ★', style: pixelStyle(size: 6)),
+              Text('Karta AKQJ 1234567890 ★', style: rankStyle(size: 6)),
             ],
           ),
         ),
@@ -179,6 +191,8 @@ class _Root extends StatelessWidget {
     return ListenableBuilder(
       listenable: game,
       builder: (context, _) {
+        // الخطوط بتتغير حسب اللغة (قبل ما الشاشة تترسم)
+        PixelFont.arabic = game.lang == AppLang.ar;
         final Widget screen = switch (game.screen) {
           AppScreen.home => HomeScreen(key: const ValueKey('home'), game: game),
           AppScreen.admin => AdminScreen(key: const ValueKey('admin'), game: game),

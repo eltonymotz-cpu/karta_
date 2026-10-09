@@ -48,7 +48,7 @@ void main() {
     // البارتي بياخد الكروت اللي مش عنده من الكلاسيك المعدّل
     expect(getRule('party', 'A').title.ar, getRule('classic', 'A').title.ar);
 
-    await ModeStore.delete('classic');
+    await ModeStore.deleteLocal('classic');
     expect(getRule('classic', 'K').title.ar, original);
     expect(isEdited('classic'), isFalse);
   });

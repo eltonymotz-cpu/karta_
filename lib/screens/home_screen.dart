@@ -2,15 +2,19 @@
 // الشاشة الأولى: موبايل واحد ولا أكتر من موبايل؟
 // -----------------------------------------------------------------
 // 🔒 مدخل الأدمن المخفي: دوس على اللوجو 5 مرات ورا بعض (في خلال ثانيتين)
-//    وبعدين اكتب الرقم السري (موجود في lib/config.dart)
+//    وبعدين سجّل دخول بحساب الأدمن (Supabase). لو Supabase مش متظبط،
+//    بيطلب الرقم السري اللي في lib/config.dart (للتجربة على جهاز واحد بس).
+// ❓ زرار المساعدة فوق: بيفتح صفحة "إزاي نلعب كارتة".
 // =================================================================
 import 'package:flutter/material.dart';
 
 import '../config.dart';
 import '../data/texts.dart';
 import '../game/game_controller.dart';
+import '../services/admin_auth.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'help_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final GameController game;
@@ -43,11 +47,84 @@ class _HomeScreenState extends State<HomeScreen> {
     _logoTaps++;
     if (_logoTaps >= 5) {
       _logoTaps = 0;
-      _askPin();
+      _openAdmin();
     }
   }
 
-  /// نافذة الرقم السري
+  /// فتح لوحة الأدمن: لو داخل كأدمن على طول، وإلا تسجيل دخول
+  Future<void> _openAdmin() async {
+    if (!AdminAuth.available) return _askPin(); // من غير Supabase: الرقم السري (جهاز واحد بس)
+    if (AdminAuth.isLoggedIn && await AdminAuth.checkIsAdmin()) {
+      game.openAdmin();
+      return;
+    }
+    if (!mounted) return;
+    final email = TextEditingController();
+    final password = TextEditingController();
+    String? error;
+    bool loading = false;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          Future<void> submit() async {
+            setDialogState(() {
+              loading = true;
+              error = null;
+            });
+            final result = await AdminAuth.signIn(email.text, password.text);
+            if (!context.mounted) return;
+            if (result == null) {
+              Navigator.pop(context, true);
+            } else {
+              setDialogState(() {
+                loading = false;
+                error = result;
+              });
+            }
+          }
+
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: RetroWindow(
+              title: '🔒 ${game.t(UiText.adminLogin)}',
+              barColor: AppColors.purple,
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _BoxField(controller: email, hint: game.t(UiText.email), keyboardType: TextInputType.emailAddress, small: true),
+                  const SizedBox(height: 10),
+                  _BoxField(
+                    controller: password,
+                    hint: game.t(UiText.password),
+                    obscure: true,
+                    small: true,
+                    onSubmitted: (_) => submit(),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: 10),
+                    Text(error!, style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800, fontSize: 13)),
+                  ],
+                  const SizedBox(height: 16),
+                  loading
+                      ? const Center(child: CircularProgressIndicator(color: AppColors.ink))
+                      : BrutalButton(label: game.t(UiText.login), onTap: submit),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    email.dispose();
+    password.dispose();
+    if (ok == true && mounted) game.openAdmin();
+  }
+
+  /// نافذة الرقم السري (لما Supabase مش متظبط)
   Future<void> _askPin() async {
     final controller = TextEditingController();
     final ok = await showDialog<bool>(
@@ -124,7 +201,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Row(
                           textDirection: TextDirection.ltr,
-                          children: [LangToggle(game: game), const Spacer(), const ShapeAccent(size: 12)],
+                          children: [
+                            LangToggle(game: game),
+                            const Spacer(),
+                            // زرار المساعدة: إزاي نلعب كارتة
+                            SquareButton(
+                              color: AppColors.yellow,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => HelpScreen(game: game)),
+                              ),
+                              child: Text('?', style: pixelStyle(size: 20)),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
                         // اللوجو (ومدخل الأدمن المخفي)
@@ -250,6 +338,7 @@ class _BoxField extends StatelessWidget {
   final String hint;
   final bool obscure;
   final bool capital;
+  final bool small; // خط عادي (للإيميل والباسورد) بدل الخط الكبير بتاع الكود
   final TextInputType? keyboardType;
   final ValueChanged<String>? onSubmitted;
   const _BoxField({
@@ -257,6 +346,7 @@ class _BoxField extends StatelessWidget {
     required this.hint,
     this.obscure = false,
     this.capital = false,
+    this.small = false,
     this.keyboardType,
     this.onSubmitted,
   });
@@ -270,7 +360,9 @@ class _BoxField extends StatelessWidget {
       textCapitalization: capital ? TextCapitalization.characters : TextCapitalization.none,
       textAlign: TextAlign.center,
       onSubmitted: onSubmitted,
-      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 4),
+      style: small
+          ? const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)
+          : const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 4),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: AppColors.muted, fontSize: 15, letterSpacing: 0),

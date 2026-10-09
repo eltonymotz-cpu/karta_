@@ -69,6 +69,12 @@ class UiText {
 
   // ---------- الأدمن ----------
   static const adminPinTitle = LText('الرقم السري', 'El Ra2am El Serry');
+  static const adminLogin = LText('دخول الأدمن', 'Dokhool el admin');
+  static const email = LText('الإيميل', 'El email');
+  static const password = LText('الباسورد', 'El password');
+  static const login = LText('ادخل', 'Odkhol');
+  static const logout = LText('خروج', 'Khoroog');
+  static const loggedInAs = LText('داخل بـ {email}', 'Dakhel b {email}');
   static const wrongPin = LText('الرقم غلط', 'El ra2am ghalat');
   static const adminTitle = LText('لوحة\nالأدمن', 'Lo7et\nEl Admin');
   static const adminSubtitle = LText('ضيف أنماط جديدة: كل نمط 13 كارت من A لـ 2', 'Daif anmat gdeda: kol namat 13 kart men A le 2');
@@ -120,6 +126,87 @@ class UiText {
     'Kol kart ziada lazem ykoon leh esm mesh mekarar (w mesh zay A aw K...) w 3enwan',
   );
   static const fillRequired = LText('لازم تكتب اسم النمط وعنوان كل الـ 13 كارت', 'Lazem tekteb esm el namat w 3enwan kol el 13 kart');
+
+  // ---------- مكتبة الكروت ----------
+  static const cardLibrary = LText('مكتبة الكروت', 'Maktabet el kroot');
+  static const cardLibraryHint = LText(
+    'كل كروت كل الأنماط: عدّل الشكل والمحتوى والإعدادات، أو انسخ، أو اقفل، أو امسح. التعديلات بتوصل للعبة على طول.',
+    'Kol kroot kol el anmat: 3addel el shakl wel mo7tawa wel e3dadat, aw ensakh, aw e2fel, aw ems7. El ta3deelat btewsal lel le3ba 3ala tool.',
+  );
+  static const newCard = LText('كارت جديد', 'Kart gedeed');
+  static const editCard = LText('تعديل الكارت', 'Ta3deel el kart');
+  static const cardsCount = LText('{n} كارت', '{n} kart');
+  static const searchCards = LText('دوّر على كارت...', 'Dawwar 3ala kart...');
+  static const allModes = LText('كل الأنماط', 'Kol el anmat');
+  static const allTypes = LText('كل الأنواع', 'Kol el anwa3');
+  static const allStatus = LText('الكل', 'El kol');
+  static const enabledLabel = LText('مفعّل', 'Mfa33al');
+  static const disabledLabel = LText('مقفول', 'Ma2fool');
+  static const enabledHint = LText('الكارت المقفول مش بيتحط في الكومة في الألعاب الجديدة', 'El kart el ma2fool mesh byet7at fel koma fel al3ab el gdeda');
+  static const cardEnabled = LText('الكارت اتفعّل ✅', 'El kart etfa33al ✅');
+  static const cardDisabled = LText('الكارت اتقفل', 'El kart et2afal');
+  static const cardDeleted = LText('الكارت اتمسح', 'El kart etmasa7');
+  static const cardDuplicated = LText('اتعمل نسخة: {card}', 'Et3amal noskha: {card}');
+  static const deleteCardConfirm = LText('تمسح الكارت {card}؟', 'Tems7 el kart {card}?');
+  static const chooseMode = LText('اختار النمط', 'Ekhtar el namat');
+  static const edit = LText('تعديل', 'Ta3deel');
+  static const duplicate = LText('نسخ', 'Nasakh');
+  static const updatedAt = LText('آخر تعديل: {date}', 'Akher ta3deel: {date}');
+  static const catNormal = LText('عادي', 'Normal');
+  static const catAction = LText('أكشن', 'Action');
+  static const catQueen = LText('صمت (Q)', 'Samt (Q)');
+  static const catBomb = LText('قنبلة', '2onbela');
+
+  // ---------- محرر الكارت ----------
+  static const tabContent = LText('المحتوى', 'El Mo7tawa');
+  static const tabDesign = LText('الشكل', 'El Shakl');
+  static const tabGameplay = LText('اللعب', 'El Le3b');
+  static const livePreview = LText('معاينة', 'Mo3ayna');
+  static const front = LText('الوش', 'El Wesh');
+  static const backFace = LText('الضهر', 'El Dahr');
+  static const mobile = LText('موبايل', 'Mobile');
+  static const subtitleAr = LText('سطر صغير تحت العنوان (عربي)', 'Satr soghayar ta7t el 3enwan (3araby)');
+  static const subtitleFr = LText('سطر صغير تحت العنوان (فرانكو)', 'Satr soghayar ta7t el 3enwan (Franco)');
+  static const textAlign = LText('محاذاة الكلام', 'Mo7azat el kalam');
+  static const alignCenter = LText('في النص', 'Fel nos');
+  static const alignStart = LText('على الجنب', '3al ganb');
+  static const titleOnBack = LText('العنوان يظهر على ضهر الكارت', 'El 3enwan yezhar 3ala dahr el kart');
+  static const titleOnBackHint = LText('اللاعيبة هيشوفوا عنوان الكارت قبل ما يتقلب', 'El la3eeba hayshoofo 3enwan el kart 2abl ma yet2eleb');
+  static const barColor = LText('لون شريط العنوان', 'Loon shereet el 3enwan');
+  static const bgColor = LText('لون الخلفية', 'Loon el khalfeya');
+  static const textColor = LText('لون الكلام', 'Loon el kalam');
+  static const borderColor = LText('لون الحدود', 'Loon el 7odood');
+  static const borderStyle = LText('شكل الحدود', 'Shakl el 7odood');
+  static const borderSolid = LText('عادي', '3ady');
+  static const borderThick = LText('تقيل', 'T2eel');
+  static const borderDashed = LText('متقطع', 'Met2atta3');
+  static const icon = LText('الأيقونة', 'El Ay2ona');
+  static const uploadIcon = LText('ارفع أيقونة', 'Erfa3 ay2ona');
+  static const iconSize = LText('حجم الأيقونة', '7agm el ay2ona');
+  static const iconPosition = LText('مكان الأيقونة', 'Makan el ay2ona');
+  static const iconTop = LText('فوق العنوان', 'Fo2 el 3enwan');
+  static const iconBackground = LText('كبيرة ورا الكلام', 'Kbeera wara el kalam');
+  static const artwork = LText('صورة خلفية للكارت', 'Soret khalfeya lel kart');
+  static const uploadArtwork = LText('ارفع صورة خلفية', 'Erfa3 soret khalfeya');
+  static const artworkOpacity = LText('وضوح الصورة', 'Wodoo7 el sora');
+  static const pattern = LText('نقشة', 'Na2sha');
+  static const patternNone = LText('من غير', 'Men gher');
+  static const patternDots = LText('نقط', 'No2at');
+  static const patternGrid = LText('مربعات', 'Moraba3at');
+  static const patternStripes = LText('خطوط', 'Khotoot');
+  static const patternAuto = LText('تلقائي', 'Tel2a2y');
+  static const backColor = LText('لون ضهر الكارت', 'Loon dahr el kart');
+  static const backPattern = LText('نقشة الضهر', 'Na2shet el dahr');
+  static const inMode = LText('في نمط', 'Fe namat');
+  static const category = LText('التصنيف', 'El Tasneef');
+  static const timedCard = LText('كارت أسئلة بمؤقت', 'Kart as2ela b mo2a2et');
+  static const timedCardHint = LText('العداد بيشتغل أول ما الكارت يتقلب', 'El 3addad byeshtaghal awel ma el kart yet2eleb');
+  static const cardTimer = LText('مدة المؤقت', 'Moddet el mo2a2et');
+  static const useGameSetting = LText('حسب إعدادات اللعبة', '7asab e3dadat el le3ba');
+  static const copiesHint = LText('كل ما يزيد، الكارت يطلع أكتر', 'Kol ma yzeed, el kart yetla3 aktar');
+  static const uploading = LText('بيترفع...', 'Byetrefe3...');
+  static const uploaded = LText('الصورة اترفعت ✅', 'El sora etrafa3et ✅');
+  static const titleRequired = LText('لازم تكتب عنوان للكارت', 'Lazem tekteb 3enwan lel kart');
 
   // أسماء أنواع الكروت في لوحة الأدمن
   static const typeAssign = LText('اللاعيبة يختاروا الخسران', 'El la3eeba yekhtaro el khasran');
@@ -202,4 +289,58 @@ class UiText {
   static const logNobody = LText('🙌 محدش خسر الدور ده', '🙌 Ma7adesh khesr el dor da');
   static const logCaduWait = LText('🎁 الكادو مستني أول خسران...', '🎁 El kado mestanny awel khasran...');
   static const logBoom = LText('💥 القنبلة انفجرت!', '💥 El 2onbela enfagaret!');
+  static const logTimeout = LText('⏰ وقت {name} خلص', '⏰ Wa2t {name} khelis');
+  static const logSkip = LText('⏭ الهوست عدّى {card} (دور {name})', '⏭ El host 3adda {card} (dor {name})');
+  static const logCorrection = LText('🛠 تصحيح: الهوست شال {card} من {name}', '🛠 Tas7ee7: el host shal {card} men {name}');
+
+  // ---------- الهوست والدور ----------
+  static const skipCard = LText('سكيب للكارت', 'Skip lel kart');
+  static const actionCard = LText('أكشن', 'ACTION');
+  static const hostDecides = LText('👀 الهوست هو اللي بيكمّل', '👀 El host howa elly bykammel');
+  static const hostPicking = LText('الهوست بيختار الخسران...', 'El host byekhtar el khasran...');
+  static const timeUp = LText('الوقت خلص!', 'El wa2t khelis!');
+  static const yourTurnDraw = LText('👆 دورك! دوس اسحب', '👆 Dorak! Dos es7ab');
+  static const turnOf = LText('دور {name}', 'Dor {name}');
+  static const pickYourSeatShort = LText('اختار إنت مين فوق', 'Ekhtar enta meen fo2');
+  static const pickYourSeat = LText('دوس هنا واختار إنت مين عشان تسحب في دورك', 'Dos hena w ekhtar enta meen 3ashan tes7ab fe dorak');
+  static const youAre = LText('إنت {name} • استنى دورك', 'Enta {name} • Estanna dorak');
+  static const youAreTurn = LText('إنت {name} • دورك! اسحب الكارت', 'Enta {name} • Dorak! Es7ab el kart');
+  static const whoAreYou = LText('إنت مين؟', 'Enta meen?');
+  static const whoAreYouHint = LText(
+    'اختار اسمك عشان تقدر تسحب الكارت من موبايلك لما ييجي دورك. الهوست هو اللي بيحدد الخسران.',
+    'Ekhtar esmak 3ashan te2dar tes7ab el kart men mobilak lama yeegy dorak. El host howa elly byhadded el khasran.',
+  );
+  static const justWatch = LText('أتفرج بس', 'Atfarrag bas');
+  static const seatTaken = LText('محجوز', 'Ma7gooz');
+
+  // ---------- إعدادات اللعبة ----------
+  static const gameSettings = LText('إعدادات اللعبة', 'E3dadat el le3ba');
+  static const questionTimer = LText('مؤقت كروت الأسئلة', 'Mo2a2et kroot el as2ela');
+  static const questionTimerHint = LText(
+    'بيشتغل لوحده لما كارت أسئلة يتقلب (زي وزن وقافية والبراندات). لما يخلص بيفتح اختيار الخسران، والهوست هو اللي بيقرر.',
+    'Byeshtaghal lewa7do lama kart as2ela yet2eleb (zay wazn w 2afya wel brandat). Lama ykhallas byefta7 ekhtyar el khasran, wel host howa elly by2arrar.',
+  );
+  static const bombRange = LText('وقت القنبلة', 'Wa2t el 2onbela');
+  static const bombRangeHint = LText(
+    'بيتختار وقت عشوائي سري في المدى ده كل مرة القنبلة تشتغل.',
+    'Byetkhtar wa2t 3ashwa2y serry fel mada da kol marra el 2onbela teshtaghal.',
+  );
+  static const off = LText('مقفول', 'Ma2fool');
+  static const sec = LText('ث', 's');
+
+  // ---------- الأنيميشن ----------
+  static const fxLost = LText('😬 {name} خسر!', '😬 {name} khesr!');
+  static const fxCorrected = LText('✔ اتشال كارت من {name}', '✔ Etshal kart men {name}');
+  static const fxNobody = LText('🙌 محدش خسر', '🙌 Ma7adesh khesr');
+  static const fxSkipped = LText('⏭ الكارت اتعدّى', '⏭ El kart et3adda');
+
+  // ---------- تصحيح الكروت ----------
+  static const cardsOf = LText('كروت {name}', 'Kroot {name}');
+  static const correctionHint = LText(
+    'لو كارت اتدى بالغلط، دوس ✕ جنبه وهيتشال (من غير ما اللعبة تبدأ من الأول).',
+    'Law kart etdda bel ghalat, dos ✕ ganbo w hayetshal (men gher ma el le3ba tebda2 men el awel).',
+  );
+  static const noCards = LText('مفيش كروت لسه', 'Mafeesh kroot lessa');
+  static const removeCardConfirm = LText('تشيل {card} من {name}؟', 'Teshil {card} men {name}?');
+  static const removeCard = LText('شيله', 'Sheelo');
 }

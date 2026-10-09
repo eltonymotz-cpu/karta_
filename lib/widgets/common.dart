@@ -15,12 +15,30 @@ import '../theme.dart';
 // الخطوط
 // =================================================================
 
-/// خط البيكسل للعناوين والزراير (Pixelify Sans)، والعربي بيتكتب بخط Baloo
-/// لأن مفيش خط بيكسل عربي، فالتطبيق بيستخدمه احتياطي للحروف العربي.
+/// اللغة الحالية بالنسبة للخطوط (main.dart بيحدّثها مع كل تغيير لغة)
+class PixelFont {
+  static bool arabic = true;
+}
+
+/// خط العناوين والزراير:
+/// - في الفرانكو: خط البيكسل (Silkscreen - أرقامه واضحة)
+/// - في العربي: خط Baloo المدوّر، لأن مفيش خط بيكسل عربي
 TextStyle pixelStyle({double size = 16, Color color = AppColors.ink, FontWeight weight = FontWeight.w700}) {
-  return GoogleFonts.pixelifySans(fontSize: size, color: color, fontWeight: weight, height: 1.15).copyWith(
-    fontFamilyFallback: [GoogleFonts.balooBhaijaan2().fontFamily!],
-  );
+  if (PixelFont.arabic) {
+    return GoogleFonts.balooBhaijaan2(fontSize: size, color: color, fontWeight: FontWeight.w800, height: 1.15);
+  }
+  return GoogleFonts.silkscreen(
+    fontSize: size * 0.9,
+    color: color,
+    fontWeight: weight.value >= 600 ? FontWeight.w700 : FontWeight.w400,
+    height: 1.2,
+  ).copyWith(fontFamilyFallback: [GoogleFonts.balooBhaijaan2().fontFamily!]);
+}
+
+/// خط البيكسل دايماً (لقيمة الكارت والأرقام لوحدها) - الـ Text بيبقى
+/// textDirection: TextDirection.ltr عشان الترتيب يفضل صح جوه الكلام العربي
+TextStyle rankStyle({double size = 16, Color color = AppColors.ink}) {
+  return GoogleFonts.silkscreen(fontSize: size * 0.9, color: color, fontWeight: FontWeight.w700, height: 1.15);
 }
 
 // =================================================================
@@ -133,9 +151,13 @@ class ModeIcon extends StatelessWidget {
       alignment: Alignment.center,
       clipBehavior: Clip.antiAlias,
       decoration: Brutal.box(color: color, borderWidth: 2, shadowOffset: Offset.zero),
-      child: image != null
-          ? Image.memory(base64Decode(image), width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true)
-          : Text(mode.emoji, style: TextStyle(fontSize: size * 0.5)),
+      // الصورة يا رابط (Supabase Storage) يا base64 (الصور القديمة)
+      child: image == null
+          ? Text(mode.emoji, style: TextStyle(fontSize: size * 0.5))
+          : image.startsWith('http')
+              ? Image.network(image, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true,
+                  errorBuilder: (_, _, _) => Text(mode.emoji, style: TextStyle(fontSize: size * 0.5)))
+              : Image.memory(base64Decode(image), width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true),
     );
   }
 }
@@ -465,6 +487,8 @@ class _PulseState extends State<Pulse> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // لو الموبايل مفعّل "تقليل الحركة"، مفيش نبض
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) return widget.child;
     return ScaleTransition(
       scale: Tween(begin: 1.0, end: widget.scale).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
       // RepaintBoundary: النبض بيكبّر صورة جاهزة بدل ما يعيد رسم العنصر كل فريم

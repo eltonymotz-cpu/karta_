@@ -13,34 +13,42 @@ vercel.cmd deploy --prod
 
 `vercel.json` و `.vercelignore` بيخلّوا Vercel يرفع فولدر `build/web` الجاهز بس.
 
-## التشغيل
+## التشغيل والاختبارات
 
 | الأمر | الوظيفة |
 |---|---|
 | `flutter run -d chrome` | تجربة سريعة في المتصفح |
 | `flutter build web` ثم `node tool/serve.js` | نسخة الويب النهائية على http://localhost:8080 |
+| `flutter test` | اختبارات منطق اللعبة (السكيب، الصلاحيات، المؤقتات، الكروت...) |
+| `flutter analyze` | فحص الكود |
 | `flutter build apk` | ملف APK للأندرويد (محتاج Android SDK) |
 
-## تظبيط وضع "أكتر من موبايل" (Supabase)
+## تظبيط Supabase
 
-1. اعمل مشروع على [supabase.com](https://supabase.com).
-2. من **Project Settings → API Keys** انسخ الـ **Project URL** والـ **Publishable key** وحطهم في `lib/config.dart`.
-3. من **SQL Editor** شغّل ملف `supabase/setup.sql` (عشان الأنماط اللي الأدمن بيضيفها تتحفظ أونلاين).
-4. ارفع نسخة الويب (`build/web`) على أي استضافة (Netlify / Vercel / GitHub Pages) وحط رابطها في `joinBaseUrl` في `lib/config.dart`.
-   ده الرابط اللي بيتحط في الـ QR، فلازم يكون رابط على النت مش localhost.
+1. من **Project Settings → API Keys** حط الـ **Project URL** والـ **Publishable key** في `lib/config.dart`.
+2. من **SQL Editor** شغّل الملفات دي بالترتيب (آمنة لو اتشغلت أكتر من مرة، ومش بتمسح بيانات):
+   - `supabase/setup.sql` (جدول الأنماط)
+   - `supabase/migrations/002_admin_auth_storage_realtime.sql` (حماية الأدمن + رفع الصور + التحديث اللايف)
+     **قبل ما تشغّله:** غيّر `YOUR_ADMIN_EMAIL@example.com` لإيميل الأدمن.
+3. من **Authentication → Users → Add user** اعمل يوزر بنفس إيميل الأدمن وباسورد.
+   ويُفضّل تقفل التسجيل العام: **Authentication → Sign In / Providers → Allow new users to sign up** (Off).
+4. حط رابط نسخة الويب في `joinBaseUrl` في `lib/config.dart` (ده اللي بيتحط في الـ QR).
 
-**إزاي بيشتغل:** صاحب القعدة يختار "أكتر من موبايل" ويبدأ اللعب → يدوس زرار الـ QR الأصفر فوق →
-الباقيين يعملوا سكان بكاميرا الموبايل (أو يكتبوا الكود في الشاشة الأولى) ويتفرجوا على الكارت بيتقلب عندهم لايف.
-صاحب القعدة بس هو اللي بيتحكم.
+## أكتر من موبايل
+
+الهوست يختار "أكتر من موبايل" ويبدأ اللعب → يدوس زرار الـ QR الأصفر → الباقيين يعملوا سكان أو يكتبوا الكود.
+كل واحد يختار هو مين (الشريط اللي فوق)، وبعدها يقدر يسحب الكارت من موبايله في دوره بس.
+الهوست بس هو اللي بيختار الخسران، وبيعمل سكيب، وبيصحح الكروت. أي طلب تاني من موبايل لاعب بيتجاهل عند الهوست.
 
 ## لوحة الأدمن (مخفية)
 
-في الشاشة الأولى: **دوس على اللوجو 5 مرات ورا بعض** → اكتب الرقم السري (`adminPin` في `lib/config.dart`، الافتراضي `2468`).
-من هناك تقدر تضيف نمط جديد بـ 13 كارت (A لـ 2)، أو تعدّل وتمسح الأنماط اللي ضفتها.
-الأنماط بتظهر في شاشة الإعداد على طول.
-
-> ⚠️ الرقم السري جوه التطبيق، فده مش حماية حقيقية: أي حد معاه الـ publishable key يقدر يكتب في جدول الأنماط.
-> كفاية للعب بين أصحاب، بس لو هتنشر التطبيق للناس ضيف Supabase Auth.
+في الشاشة الأولى: **دوس على اللوجو 5 مرات ورا بعض** → سجّل دخول بإيميل وباسورد الأدمن.
+- **مكتبة الكروت**: كل الكروت في كل الأنماط، بحث وفلترة، تعديل الشكل والمحتوى والإعدادات مع معاينة لايف،
+  نسخ، تفعيل/قفل، مسح (الكروت الزيادة)، وكارت جديد.
+- **الأنماط**: نمط جديد، تعديل، صورة للنمط، ورجوع الأنماط الأساسية لأصلها.
+- الصور بتترفع على Supabase Storage (bucket `karta-images`) واللي بيتحفظ هو رابطها.
+- الحفظ والرفع محميين في Supabase نفسه (RLS)، فحتى لو حد فتح اللوحة مش هيقدر يحفظ غير لو كان أدمن.
+- لو Supabase مش متظبط، اللوحة بتفتح بالرقم السري (`adminPin`) وبتحفظ على الجهاز بس.
 
 ## فين أعدّل إيه؟
 
@@ -49,11 +57,15 @@ vercel.cmd deploy --prod
 | Supabase والرقم السري ورابط الـ QR | `lib/config.dart` |
 | قواعد الكروت والأنماط الأساسية | `lib/data/game_modes.dart` |
 | أي كلام (عربي أو فرانكو) | `lib/data/texts.dart` |
-| الألوان والستايل | `lib/theme.dart` |
-| منطق اللعب والمزامنة بين الموبايلات | `lib/game/game_controller.dart` |
+| صفحة المساعدة | `lib/data/help_texts.dart` و `lib/screens/help_screen.dart` |
+| الألوان والستايل وشكل كل كارت | `lib/theme.dart` |
+| منطق اللعب والمزامنة والصلاحيات | `lib/game/game_controller.dart` |
+| مؤقت الأسئلة ووقت القنبلة | `lib/game/game_settings.dart` |
 | الاتصال بالقعدة أونلاين | `lib/services/room_service.dart` |
-| حفظ أنماط الأدمن | `lib/services/mode_store.dart` |
-| شكل الكارت | `lib/widgets/big_card.dart` |
+| حفظ الأنماط والكروت | `lib/services/mode_store.dart` |
+| رفع الصور | `lib/services/storage_service.dart` |
+| دخول الأدمن | `lib/services/admin_auth.dart` |
+| شكل الكارت (وشه وضهره) | `lib/widgets/card_face.dart` و `lib/widgets/big_card.dart` |
+| الأنيميشن | `lib/widgets/game_fx.dart` |
 | الشاشات | `lib/screens/` |
 | الأصوات | `assets/sounds/*.wav` و `lib/services/sound_service.dart` |
-| اللوجو | `assets/images/logo.png` |

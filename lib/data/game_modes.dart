@@ -19,6 +19,93 @@ import 'texts.dart';
 
 enum RuleType { assign, free, self, cadu, bomb, clap, silence }
 
+/// تصنيف الكارت (للعرض والفلترة وشكل الضهر):
+/// normal = كارت عادي (سؤال/تحدي)، action = كارت أكشن، queen = صمت، bomb = قنبلة
+enum CardCategory { normal, action, queen, bomb }
+
+/// شكل كارت قابل للتعديل من لوحة الأدمن (كل الخانات اختيارية:
+/// لو خانة فاضية الكارت بياخد الشكل الافتراضي بتاعه من theme.dart)
+class CardDesign {
+  final int? bg;              // لون خلفية وش الكارت
+  final int? bar;             // لون شريط العنوان
+  final int? text;            // لون الكلام
+  final int? border;          // لون الحدود
+  final String borderStyle;   // solid / thick / dashed
+  final String? sticker;      // ستيكر من الستيكرز الموجودة (اسمه)
+  final String? iconUrl;      // أيقونة مرفوعة (رابط في Supabase Storage)
+  final double iconScale;     // حجم الأيقونة (0.5 لـ 1.5)
+  final String iconPos;       // top = فوق العنوان / background = كبيرة وباهتة ورا الكلام
+  final String? artworkUrl;   // صورة خلفية للكارت (رابط)
+  final double artworkOpacity;
+  final String pattern;       // none / dots / grid / stripes
+  final String align;         // center / start
+  final int? back;            // لون ضهر الكارت
+  final String backPattern;   // auto / dots / stripes / grid
+  final bool titleOnBack;     // يظهر عنوان الكارت على ضهره قبل ما يتقلب
+
+  const CardDesign({
+    this.bg,
+    this.bar,
+    this.text,
+    this.border,
+    this.borderStyle = 'solid',
+    this.sticker,
+    this.iconUrl,
+    this.iconScale = 1.0,
+    this.iconPos = 'top',
+    this.artworkUrl,
+    this.artworkOpacity = 0.25,
+    this.pattern = 'none',
+    this.align = 'center',
+    this.back,
+    this.backPattern = 'auto',
+    this.titleOnBack = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+        if (bg != null) 'bg': bg,
+        if (bar != null) 'bar': bar,
+        if (text != null) 'text': text,
+        if (border != null) 'border': border,
+        if (borderStyle != 'solid') 'borderStyle': borderStyle,
+        if (sticker != null) 'sticker': sticker,
+        if (iconUrl != null) 'iconUrl': iconUrl,
+        if (iconScale != 1.0) 'iconScale': iconScale,
+        if (iconPos != 'top') 'iconPos': iconPos,
+        if (artworkUrl != null) 'artworkUrl': artworkUrl,
+        if (artworkOpacity != 0.25) 'artworkOpacity': artworkOpacity,
+        if (pattern != 'none') 'pattern': pattern,
+        if (align != 'center') 'align': align,
+        if (back != null) 'back': back,
+        if (backPattern != 'auto') 'backPattern': backPattern,
+        if (titleOnBack) 'titleOnBack': true,
+      };
+
+  factory CardDesign.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const CardDesign();
+    int? color(String key) => (json[key] as num?)?.toInt();
+    double number(String key, double fallback) => (json[key] as num?)?.toDouble() ?? fallback;
+    return CardDesign(
+      bg: color('bg'),
+      bar: color('bar'),
+      text: color('text'),
+      border: color('border'),
+      borderStyle: json['borderStyle'] as String? ?? 'solid',
+      sticker: json['sticker'] as String?,
+      iconUrl: json['iconUrl'] as String?,
+      iconScale: number('iconScale', 1.0).clamp(0.5, 1.5),
+      iconPos: json['iconPos'] as String? ?? 'top',
+      artworkUrl: json['artworkUrl'] as String?,
+      artworkOpacity: number('artworkOpacity', 0.25).clamp(0.05, 1.0),
+      pattern: json['pattern'] as String? ?? 'none',
+      align: json['align'] as String? ?? 'center',
+      back: color('back'),
+      backPattern: json['backPattern'] as String? ?? 'auto',
+      titleOnBack: json['titleOnBack'] as bool? ?? false,
+    );
+  }
+}
+
 /// قاعدة كارت واحد
 class CardRule {
   final String emoji;        // إيموجي يظهر على الكارت
@@ -27,6 +114,12 @@ class CardRule {
   final RuleType type;       // نوع التعامل مع الكارت
   final LText? prompt;       // السؤال اللي يظهر فوق أسامي اللاعيبة وقت الاختيار
   final bool setsSilence;    // لو true: صاحب الدور يدخل وضع "الصمت"
+  final LText? subtitle;     // سطر صغير تحت العنوان (اختياري)
+  final bool enabled;        // لو false: الكارت مش بيتحط في الكومة خالص
+  final bool timed;          // كارت أسئلة: بيشغّل مؤقت الإجابة لما يتقلب
+  final int? timerSeconds;   // مدة خاصة بالكارت ده (null = مدة إعدادات اللعبة)
+  final CardDesign design;   // شكل الكارت
+  final String? updatedAt;   // آخر تعديل من لوحة الأدمن
 
   const CardRule({
     required this.emoji,
@@ -35,19 +128,79 @@ class CardRule {
     required this.type,
     this.prompt,
     this.setsSilence = false,
+    this.subtitle,
+    this.enabled = true,
+    this.timed = false,
+    this.timerSeconds,
+    this.design = const CardDesign(),
+    this.updatedAt,
   });
 
-  /// تحويل لـ JSON (للحفظ في Supabase وللإرسال للموبايلات التانية)
-  Map<String, dynamic> toJson() => {
-        'emoji': emoji,
-        'title': title.toJson(),
-        'description': description.toJson(),
-        'type': type.name,
-        if (prompt != null) 'prompt': prompt!.toJson(),
-        'silence': setsSilence,
+  /// تصنيف الكارت (بيتحسب من النوع، مش بيتكتب بإيد)
+  CardCategory get category => switch (type) {
+        RuleType.assign => CardCategory.normal,
+        RuleType.silence => CardCategory.queen,
+        RuleType.bomb => CardCategory.bomb,
+        _ => CardCategory.action,
       };
 
-  /// قراءة من JSON
+  /// هل ده كارت أكشن (أي حاجة غير السؤال/التحدي العادي)؟
+  bool get isAction => category != CardCategory.normal;
+
+  /// نسخة معدّلة من القاعدة (الخانات اللي مش متبعتة بتفضل زي ما هي)
+  CardRule copyWith({
+    String? emoji,
+    LText? title,
+    LText? description,
+    RuleType? type,
+    LText? prompt,
+    bool clearPrompt = false,
+    bool? setsSilence,
+    LText? subtitle,
+    bool clearSubtitle = false,
+    bool? enabled,
+    bool? timed,
+    int? timerSeconds,
+    bool clearTimer = false,
+    CardDesign? design,
+    String? updatedAt,
+  }) {
+    return CardRule(
+      emoji: emoji ?? this.emoji,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      type: type ?? this.type,
+      prompt: clearPrompt ? null : (prompt ?? this.prompt),
+      setsSilence: setsSilence ?? this.setsSilence,
+      subtitle: clearSubtitle ? null : (subtitle ?? this.subtitle),
+      enabled: enabled ?? this.enabled,
+      timed: timed ?? this.timed,
+      timerSeconds: clearTimer ? null : (timerSeconds ?? this.timerSeconds),
+      design: design ?? this.design,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  /// تحويل لـ JSON (للحفظ في Supabase وللإرسال للموبايلات التانية)
+  Map<String, dynamic> toJson() {
+    final designJson = design.toJson();
+    return {
+      'emoji': emoji,
+      'title': title.toJson(),
+      'description': description.toJson(),
+      'type': type.name,
+      if (prompt != null) 'prompt': prompt!.toJson(),
+      'silence': setsSilence,
+      if (subtitle != null) 'subtitle': subtitle!.toJson(),
+      if (!enabled) 'enabled': false,
+      if (timed) 'timed': true,
+      if (timerSeconds != null) 'timerSeconds': timerSeconds,
+      if (designJson.isNotEmpty) 'design': designJson,
+      if (updatedAt != null) 'updatedAt': updatedAt,
+    };
+  }
+
+  /// قراءة من JSON (الكروت القديمة اللي مالهاش الخانات الجديدة بتشتغل عادي)
   factory CardRule.fromJson(Map<String, dynamic> json) => CardRule(
         emoji: json['emoji'] as String? ?? '🃏',
         title: LText.fromJson(Map<String, dynamic>.from(json['title'] as Map)),
@@ -55,6 +208,12 @@ class CardRule {
         type: RuleType.values.firstWhere((t) => t.name == json['type'], orElse: () => RuleType.assign),
         prompt: json['prompt'] == null ? null : LText.fromJson(Map<String, dynamic>.from(json['prompt'] as Map)),
         setsSilence: json['silence'] as bool? ?? false,
+        subtitle: json['subtitle'] == null ? null : LText.fromJson(Map<String, dynamic>.from(json['subtitle'] as Map)),
+        enabled: json['enabled'] as bool? ?? true,
+        timed: json['timed'] as bool? ?? false,
+        timerSeconds: (json['timerSeconds'] as num?)?.toInt(),
+        design: CardDesign.fromJson(json['design'] == null ? null : Map<String, dynamic>.from(json['design'] as Map)),
+        updatedAt: json['updatedAt'] as String?,
       );
 }
 
@@ -206,6 +365,7 @@ const Map<String, GameMode> builtInModes = {
         ),
         type: RuleType.assign,
         prompt: LText('مين وقف أو كرر؟', 'Meen we2ef aw karrar?'),
+        timed: true, // كارت أسئلة: بيشغّل مؤقت الإجابة
       ),
       '8': CardRule(
         emoji: '🏷️',
@@ -216,6 +376,7 @@ const Map<String, GameMode> builtInModes = {
         ),
         type: RuleType.assign,
         prompt: LText('مين وقف أو كرر؟', 'Meen we2ef aw karrar?'),
+        timed: true, // كارت أسئلة: بيشغّل مؤقت الإجابة
       ),
       '7': clapRule,
       '6': clapRule,
@@ -316,4 +477,97 @@ CardRule getRule(String modeId, String rank) {
     return builtInModes[parentId]!.rules[rank] ?? builtInModes['classic']!.rules[rank]!;
   }
   return getRule(parentId, rank);
+}
+
+// =================================================================
+// مكتبة الكروت: كل كارت في كل نمط (للوحة الأدمن وصفحة المساعدة)
+// =================================================================
+
+/// كارت واحد في نمط معيّن
+class CardEntry {
+  final String modeId;
+  final String rank;     // قيمة الكارت (A..2) أو اسم الكارت الزيادة
+  final CardRule rule;
+  final int copies;      // عدد نسخه في الكومة (4 للكروت العادية)
+  final bool isExtra;    // كارت زيادة (ينفع يتمسح) ولا من الـ 13 (ينفع يتقفل بس)
+  const CardEntry({
+    required this.modeId,
+    required this.rank,
+    required this.rule,
+    required this.copies,
+    required this.isExtra,
+  });
+}
+
+/// كل كروت النمط: الـ 13 العاديين + الكروت الزيادة
+List<CardEntry> cardsOf(String modeId) {
+  final mode = allModes[modeId];
+  if (mode == null) return [];
+  return [
+    for (final rank in cardRanks)
+      CardEntry(modeId: modeId, rank: rank, rule: getRule(modeId, rank), copies: 4, isExtra: false),
+    for (final extra in mode.extraCards)
+      CardEntry(modeId: modeId, rank: extra.label, rule: extra.rule, copies: extra.copies, isExtra: true),
+  ];
+}
+
+/// نسخة من النمط فيها كل الـ 13 قاعدة صريحة (عشان أي تعديل على كارت واحد
+/// يتحفظ من غير ما يعتمد على النمط الأب)
+GameMode completeMode(String modeId) {
+  final mode = allModes[modeId]!;
+  return GameMode(
+    emoji: mode.emoji,
+    name: mode.name,
+    description: mode.description,
+    basedOn: mode.basedOn,
+    rules: {for (final rank in cardRanks) rank: getRule(modeId, rank)},
+    extraCards: mode.extraCards,
+    image: mode.image,
+  );
+}
+
+/// النمط بعد تغيير كارت واحد فيه (أو إضافة/مسح كارت زيادة)
+/// - rank من الـ 13: بنبدّل قاعدته
+/// - كارت زيادة موجود: بنبدّله (ولو newRule = null بنمسحه)
+/// - كارت زيادة جديد (oldLabel = null): بنضيفه
+GameMode modeWithCard(
+  String modeId, {
+  required String? oldLabel,
+  required String label,
+  required CardRule? newRule,
+  int copies = 2,
+}) {
+  final mode = completeMode(modeId);
+  if (cardRanks.contains(label) && oldLabel == label) {
+    return GameMode(
+      emoji: mode.emoji,
+      name: mode.name,
+      description: mode.description,
+      basedOn: mode.basedOn,
+      rules: {...mode.rules, label: newRule!},
+      extraCards: mode.extraCards,
+      image: mode.image,
+    );
+  }
+  final extras = [...mode.extraCards];
+  final index = oldLabel == null ? -1 : extras.indexWhere((x) => x.label == oldLabel);
+  if (newRule == null) {
+    if (index >= 0) extras.removeAt(index);
+  } else {
+    final card = ExtraCard(label: label, copies: copies, rule: newRule);
+    if (index >= 0) {
+      extras[index] = card;
+    } else {
+      extras.add(card);
+    }
+  }
+  return GameMode(
+    emoji: mode.emoji,
+    name: mode.name,
+    description: mode.description,
+    basedOn: mode.basedOn,
+    rules: mode.rules,
+    extraCards: extras,
+    image: mode.image,
+  );
 }

@@ -15,7 +15,9 @@ class PlayerSeat extends StatelessWidget {
   final Player player;
   final bool isCurrent;    // هل ده صاحب الدور؟
   final bool isSilent;     // هل هو في وضع الصمت (Q)؟
-  final bool clickable;    // هل ينفع نختاره كخسران دلوقتي؟
+  final bool clickable;    // هل ينفع نختاره كخسران دلوقتي؟ (بينبض)
+  final bool tappable;     // هل المقعد بيستقبل ضغطات أصلاً؟ (الهوست: لتصحيح الكروت)
+  final bool isMe;         // موبايل اللاعب: ده أنا؟
   final bool vertical;     // لما المساحة ضيقة المقعد بيبقى رأسي
   final String turnLabel;  // كلمة "دورك" باللغة الحالية
   final VoidCallback onTap;
@@ -29,6 +31,8 @@ class PlayerSeat extends StatelessWidget {
     required this.vertical,
     required this.turnLabel,
     required this.onTap,
+    this.tappable = false,
+    this.isMe = false,
   });
 
   @override
@@ -115,7 +119,7 @@ class PlayerSeat extends StatelessWidget {
       enabled: clickable,
       scale: 1.07,
       child: GestureDetector(
-        onTap: clickable ? onTap : null,
+        onTap: clickable || tappable ? onTap : null,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -133,6 +137,17 @@ class PlayerSeat extends StatelessWidget {
             // علامة الصمت 🤐 فوق المقعد
             if (isSilent)
               const Positioned(top: -10, right: -8, child: Text('🤐', style: TextStyle(fontSize: 17))),
+            // موبايل اللاعب: علامة صغيرة على اللاعب اللي هو ماسكه
+            if (isMe)
+              Positioned(
+                top: -9,
+                left: -6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: Brutal.box(color: AppColors.green, borderWidth: 1.6, shadowOffset: Offset.zero),
+                  child: const Icon(Icons.person, size: 12, color: AppColors.ink),
+                ),
+              ),
           ],
         ),
       ),

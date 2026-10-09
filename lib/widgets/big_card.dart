@@ -2,10 +2,12 @@
 // الكارت الكبير: أهم عنصر في اللعبة
 // -----------------------------------------------------------------
 // - ضهر الكارت: لوجو كارتة + شريط "Loading" فيه الكروت الباقية
-// - وش الكارت: شباك كمبيوتر قديم، كل قيمة ليها لون وستيكر مختلف (cardStyles في theme.dart)
+//   (كروت الأكشن ليها ضهر مختلف من غير ما يتكشف هي أنهي كارت)
+// - وش الكارت: شباك كمبيوتر قديم بلون وستيكر الكارت (شوف card_face.dart)
 // - كل الضغطات في اللعبة بتكون على الكارت ده (شوف game_controller.dart)
 // - مقاس الكارت بيتحسب تلقائياً عشان ياخد أكبر مساحة ممكنة (نسبة 5:7)
 // =================================================================
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -15,6 +17,7 @@ import '../data/texts.dart';
 import '../game/game_controller.dart';
 import '../models.dart';
 import '../theme.dart';
+import 'card_face.dart';
 import 'common.dart';
 
 class BigCard extends StatelessWidget {
@@ -39,45 +42,76 @@ class BigCard extends StatelessWidget {
           child: SizedBox(
             width: w + shadow,
             height: h + shadow,
-            // RepaintBoundary: حركة الكارت بترسم الكارت بس، مش الشاشة كلها (أنعم)
-            child: RepaintBoundary(
-              child: GestureDetector(
-                onTap: game.tapCard, // كل الضغطات على الكارت
-                child: AnimatedSwitcher(
-                  // مدة القلبة كلها ربع ثانية (أسرع قلبة وفضلت ناعمة)
-                  duration: const Duration(milliseconds: 250),
-                  // الوش القديم يلف في أول نص الوقت، والجديد في النص التاني
-                  switchInCurve: const Interval(0.5, 1, curve: Curves.easeOutQuad),
-                  switchOutCurve: const Interval(0.5, 1, curve: Curves.easeInQuad),
-                  transitionBuilder: (child, animation) => _flipTransition(child, animation, faceKey),
-                  layoutBuilder: (current, previous) => Stack(
-                    alignment: Alignment.topLeft,
-                    // ?current = ضيفه للقائمة بس لو مش null
-                    children: [...previous, ?current],
-                  ),
-                  child: KeyedSubtree(
-                    key: ValueKey(faceKey),
-                    // كل وش بيترسم مرة واحدة كصورة، وأثناء القلبة بنلف الصورة بس
-                    // من غير ما نعيد رسم الكلام والستيكرز في كل فريم (ده سر النعومة)
-                    child: RepaintBoundary(
-                      child: card == null
-                          ? _CardBack(width: w, height: h, game: game)
-                          : _CardFront(
-                              width: w,
-                              height: h,
-                              card: card,
-                              rule: game.currentRule!,
-                              phase: game.phase,
-                              game: game,
-                            ),
+            child: Stack(
+              children: [
+                // RepaintBoundary: حركة الكارت بترسم الكارت بس، مش الشاشة كلها (أنعم)
+                RepaintBoundary(
+                  child: GestureDetector(
+                    onTap: game.tapCard, // كل الضغطات على الكارت
+                    child: AnimatedSwitcher(
+                      // مدة القلبة كلها ربع ثانية (أسرع قلبة وفضلت ناعمة)
+                      duration: const Duration(milliseconds: 250),
+                      // الوش القديم يلف في أول نص الوقت، والجديد في النص التاني
+                      switchInCurve: const Interval(0.5, 1, curve: Curves.easeOutQuad),
+                      switchOutCurve: const Interval(0.5, 1, curve: Curves.easeInQuad),
+                      transitionBuilder: (child, animation) => _flipTransition(child, animation, faceKey),
+                      layoutBuilder: (current, previous) => Stack(
+                        alignment: Alignment.topLeft,
+                        // ?current = ضيفه للقائمة بس لو مش null
+                        children: [...previous, ?current],
+                      ),
+                      child: KeyedSubtree(
+                        key: ValueKey(faceKey),
+                        // كل وش بيترسم مرة واحدة كصورة، وأثناء القلبة بنلف الصورة بس
+                        child: RepaintBoundary(
+                          child: card == null
+                              ? _back(w, h)
+                              : _CardFront(width: w, height: h, card: card, rule: game.currentRule!, phase: game.phase, game: game),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+                // عداد مؤقت السؤال (فوق الكارت، بيتحدث لوحده من غير ما يعيد رسم الكارت)
+                if (card != null && game.questionEndsAt != null && game.phase == CardPhase.front)
+                  Positioned(
+                    top: w * 0.15,
+                    left: w * 0.05,
+                    child: CountdownBadge(endsAt: game.questionEndsAt!, size: w * 0.15),
+                  ),
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  /// ضهر الكارت (ونص الزرار حسب مين اللي ينفع يسحب)
+  Widget _back(double w, double h) {
+    String tap;
+    if (!game.isViewer) {
+      tap = game.t(UiText.tapToDraw);
+    } else if (game.myPlayerIndex == null) {
+      tap = game.t(UiText.pickYourSeatShort);
+    } else if (game.isMyTurn) {
+      tap = game.drawPending ? '...' : game.t(UiText.yourTurnDraw);
+    } else {
+      tap = game.t(fillText(UiText.turnOf, {'name': game.currentPlayer.name}));
+    }
+    final title = game.nextTitleOnBack;
+    return CardBackFace(
+      width: w,
+      height: h,
+      deckLeft: game.deck.length,
+      deckTotal: game.deckTotal,
+      category: game.nextCategory,
+      backColor: game.nextBackColor,
+      backPattern: game.nextBackPattern,
+      titleOnBack: title == null ? null : game.t(title),
+      cardsLeftLabel: game.t(UiText.cardsLeft),
+      tapLabel: tap,
+      actionLabel: game.t(UiText.actionCard),
     );
   }
 
@@ -102,183 +136,8 @@ class BigCard extends StatelessWidget {
   }
 }
 
-/// زرار شكل "OK" القديم: كريمي بحدود ونقط من جوه، وجنبه سهم الماوس
-class _OkButton extends StatelessWidget {
-  final double w;
-  final String text;
-  const _OkButton({required this.w, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          padding: EdgeInsets.all(w * 0.012),
-          decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(3, 3)),
-          child: CustomPaint(
-            painter: _DottedBorderPainter(),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: w * 0.045, vertical: w * 0.016),
-              child: Text(text, textAlign: TextAlign.center, style: pixelStyle(size: w * 0.042)),
-            ),
-          ),
-        ),
-        // سهم الماوس على الركن
-        Positioned(right: -w * 0.03, bottom: -w * 0.045, child: StickerImage(Sticker.cursor, size: w * 0.07)),
-      ],
-    );
-  }
-}
-
-/// إطار نقط من جوه زرار "OK"
-class _DottedBorderPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = AppColors.ink;
-    const step = 5.0, dot = 1.6;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawRect(Rect.fromLTWH(x, 0, dot, dot), paint);
-      canvas.drawRect(Rect.fromLTWH(x, size.height - dot, dot, dot), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawRect(Rect.fromLTWH(0, y, dot, dot), paint);
-      canvas.drawRect(Rect.fromLTWH(size.width - dot, y, dot, dot), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 // =================================================================
-// ضهر الكارت
-// =================================================================
-class _CardBack extends StatelessWidget {
-  final double width, height;
-  final GameController game;
-  const _CardBack({required this.width, required this.height, required this.game});
-
-  @override
-  Widget build(BuildContext context) {
-    final w = width;
-    final left = game.deck.length;
-    final total = max(left, GameController.deckSize(game.modeId));
-    return Container(
-      width: width,
-      height: height,
-      clipBehavior: Clip.antiAlias,
-      decoration: Brutal.box(color: AppColors.bg, borderWidth: 2.5, shadowOffset: const Offset(6, 6)),
-      child: Stack(
-        children: [
-          // مربعات الكراسة
-          const Positioned.fill(child: CustomPaint(painter: _CardGridPainter())),
-          Column(
-            children: [
-              // اللوجو
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(w * 0.1, w * 0.07, w * 0.1, w * 0.02),
-                  child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
-                ),
-              ),
-              // شباك "Loading" فيه الكروت الباقية
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: w * 0.08),
-                child: _LoadingWindow(w: w, left: left, total: total, label: game.t(UiText.cardsLeft)),
-              ),
-              SizedBox(height: w * 0.05),
-              // "دوس اسحب"
-              Pulse(scale: 1.06, child: _OkButton(w: w, text: game.t(UiText.tapToDraw))),
-              SizedBox(height: w * 0.07),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// شباك صغير برتقالي فيه شريط تحميل = الكروت الباقية
-class _LoadingWindow extends StatelessWidget {
-  final double w;
-  final int left, total;
-  final String label;
-  const _LoadingWindow({required this.w, required this.left, required this.total, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    const segments = 16;
-    final filled = total == 0 ? 0 : (left / total * segments).ceil();
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(3, 3)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          WindowBar(title: '', color: AppColors.orange, height: w * 0.07),
-          Padding(
-            padding: EdgeInsets.fromLTRB(w * 0.03, w * 0.015, w * 0.03, w * 0.03),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('$left $label...', style: pixelStyle(size: w * 0.04, weight: FontWeight.w500)),
-                SizedBox(height: w * 0.012),
-                // شريط مقسوم مربعات زرقا (زي Loading...)
-                Container(
-                  height: w * 0.05,
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: AppColors.paper,
-                    border: Border.all(color: AppColors.ink, width: 1.6),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Row(
-                    textDirection: TextDirection.ltr,
-                    children: [
-                      for (var i = 0; i < segments; i++)
-                        Expanded(
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 0.8),
-                            color: i < filled ? AppColors.blue : Colors.transparent,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// مربعات الكراسة على ضهر الكارت
-class _CardGridPainter extends CustomPainter {
-  const _CardGridPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.gridLine
-      ..strokeWidth = 1.6;
-    final cell = size.width / 14;
-    for (double x = cell; x < size.width; x += cell) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = cell; y < size.height; y += cell) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// =================================================================
-// وش الكارت: شباك بلون الكارت
+// وش الكارت حسب المرحلة
 // =================================================================
 class _CardFront extends StatelessWidget {
   final double width, height;
@@ -296,102 +155,24 @@ class _CardFront extends StatelessWidget {
     required this.game,
   });
 
-  // شكل الكارت: لون وستيكر خاصين بقيمة الكارت
-  CardStyle get style => styleFor(card.rank);
-
-  // لون رمز الكارت: أحمر للقلب والديناري، وغامق للباقي
-  Color get suitColor => card.isRed ? AppColors.red : AppColors.ink;
-
   @override
   Widget build(BuildContext context) {
-    final w = width;
-    return Container(
+    return CardFrontFace(
       width: width,
       height: height,
-      clipBehavior: Clip.antiAlias,
-      decoration: Brutal.box(color: style.tint, borderWidth: 2.5, shadowOffset: const Offset(6, 6)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // شريط العنوان: قيمة الكارت وشكله + _ □ ✕
-          _titleBar(w),
-          Expanded(
-            child: Stack(
-              children: [
-                // زينة: نقط فوق على اليمين ونجمة تحت على الشمال
-                Positioned(top: w * 0.03, right: w * 0.04, child: const DotGrid(columns: 4, rows: 3)),
-                Positioned(bottom: w * 0.03, left: w * 0.04, child: StickerImage(Sticker.sparkle, size: w * 0.07)),
-                // الركن اللي تحت على اليمين (مقلوب)
-                Positioned(
-                  bottom: w * 0.025,
-                  right: w * 0.045,
-                  child: Transform.rotate(angle: pi, child: _corner(w)),
-                ),
-                // محتوى الكارت (بيتغير حسب المرحلة بحركة سريعة)
-                Positioned.fill(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(w * 0.06, w * 0.05, w * 0.06, w * 0.13),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, anim) => FadeTransition(
-                        opacity: anim,
-                        child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(anim), child: child),
-                      ),
-                      child: KeyedSubtree(key: ValueKey(phase), child: _content(w)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      rank: card.rank,
+      suit: card.suit,
+      rule: rule,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, anim) => FadeTransition(
+          opacity: anim,
+          child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(anim), child: child),
+        ),
+        child: KeyedSubtree(key: ValueKey(phase), child: _content(width)),
       ),
-    );
-  }
-
-  /// شريط العنوان بلون الكارت
-  Widget _titleBar(double w) {
-    final barH = w * 0.12;
-    final iconSize = barH * 0.36;
-    return Container(
-      height: barH,
-      padding: EdgeInsets.symmetric(horizontal: w * 0.04),
-      decoration: BoxDecoration(
-        color: style.color,
-        border: const Border(bottom: BorderSide(color: AppColors.ink, width: 2.5)),
-      ),
-      child: Row(
-        textDirection: TextDirection.ltr,
-        children: [
-          // القيمة والشكل
-          Text(card.rank, style: pixelStyle(size: barH * 0.62)),
-          SizedBox(width: w * 0.015),
-          Text(card.suit, style: TextStyle(fontSize: barH * 0.55, color: suitColor, height: 1)),
-          const Spacer(),
-          Container(width: iconSize, height: 2.4, margin: EdgeInsets.only(top: iconSize * 0.8), color: AppColors.ink),
-          SizedBox(width: iconSize * 0.7),
-          Container(
-            width: iconSize,
-            height: iconSize,
-            decoration: BoxDecoration(border: Border.all(color: AppColors.ink, width: 2)),
-          ),
-          SizedBox(width: iconSize * 0.7),
-          Icon(Icons.close, size: iconSize * 1.35, color: AppColors.ink),
-        ],
-      ),
-    );
-  }
-
-  /// الركن: القيمة وتحتها الشكل
-  Widget _corner(double w) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(card.rank, style: pixelStyle(size: w * 0.075)),
-        Text(card.suit, style: TextStyle(fontSize: w * 0.06, color: suitColor, height: 1)),
-      ],
     );
   }
 
@@ -399,13 +180,13 @@ class _CardFront extends StatelessWidget {
   Widget _content(double w) {
     switch (phase) {
       case CardPhase.choosing:
-        return _choosePanel(w);
+        // موبايل اللاعب مش بيختار الخسران: بيشوف إن الهوست بيختار
+        return game.isViewer ? _waitingHost(w) : _choosePanel(w);
       case CardPhase.bombTicking:
         return _bigMessage(
           w,
-          hero: Pulse(
-            scale: 1.15,
-            duration: const Duration(milliseconds: 450),
+          hero: BombWarning(
+            endsAt: game.bombEndsAt,
             child: StickerImage(Sticker.warning, size: w * 0.32),
           ),
           title: '💣 ${game.t(UiText.passPhone)}',
@@ -417,7 +198,7 @@ class _CardFront extends StatelessWidget {
           hero: Text('💥', style: TextStyle(fontSize: w * 0.26)),
           title: game.t(UiText.boom),
           titleColor: AppColors.red,
-          hint: game.t(UiText.tapToPickLoser),
+          hint: game.isViewer ? null : game.t(UiText.tapToPickLoser),
         );
       case CardPhase.clapGo:
         return _clapButton(w);
@@ -427,78 +208,58 @@ class _CardFront extends StatelessWidget {
     }
   }
 
-  /// عرض القاعدة: ستيكر الكارت + عنوان + شرح + زرار للضغطة الجاية
+  /// عرض القاعدة
   Widget _ruleView(double w) {
     final description = fillText(rule.description, {'player': game.currentPlayer.name});
-    final hint = switch (rule.type) {
-      RuleType.assign => UiText.tapToChoose,
-      RuleType.free => UiText.tapToGive,
-      RuleType.self => UiText.tapToTake,
-      RuleType.cadu => UiText.tapNext,
-      RuleType.bomb => UiText.tapStartBomb,
-      RuleType.clap => UiText.tapToPickLoser,
-      RuleType.silence => UiText.silenceHint,
-    };
-
-    return Column(
-      children: [
-        Expanded(
-          child: Center(
-            // لو الشرح طويل، المحتوى بيصغر تلقائياً عشان يدخل في الكارت
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: SizedBox(
-                width: w * 0.88,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // الستيكر الكبير + إيموجي القاعدة في ركنه
-                    SizedBox(
-                      width: w * 0.36,
-                      height: w * 0.3,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.center,
-                        children: [
-                          StickerImage(style.sticker, size: w * 0.28),
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              padding: EdgeInsets.all(w * 0.01),
-                              decoration: Brutal.box(color: AppColors.paper, borderWidth: 2, shadowOffset: const Offset(2, 2)),
-                              child: Text(rule.emoji, style: TextStyle(fontSize: w * 0.06)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: w * 0.035),
-                    Headline(game.t(rule.title), size: w * 0.09, align: TextAlign.center),
-                    SizedBox(height: w * 0.025),
-                    Text(
-                      game.t(description),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: w * 0.05,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ink,
-                        height: 1.45,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: w * 0.03),
-        _OkButton(w: w, text: game.t(hint)),
-      ],
+    final hint = game.isViewer
+        ? UiText.hostDecides
+        : switch (rule.type) {
+            RuleType.assign => UiText.tapToChoose,
+            RuleType.free => UiText.tapToGive,
+            RuleType.self => UiText.tapToTake,
+            RuleType.cadu => UiText.tapNext,
+            RuleType.bomb => UiText.tapStartBomb,
+            RuleType.clap => UiText.tapToPickLoser,
+            RuleType.silence => UiText.silenceHint,
+          };
+    return RuleBody(
+      width: w,
+      rank: card.rank,
+      rule: rule,
+      title: game.t(rule.title),
+      subtitle: rule.subtitle == null ? null : game.t(rule.subtitle!),
+      description: game.t(description),
+      hint: game.t(hint),
     );
   }
 
-  /// لوحة اختيار الخسران جوه الكارت
+  /// موبايل اللاعب وقت اختيار الخسران
+  Widget _waitingHost(double w) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (game.timedOut) _timeUp(w),
+          StickerImage(Sticker.magnifier, size: w * 0.24),
+          SizedBox(height: w * 0.04),
+          Text(game.t(UiText.hostPicking), textAlign: TextAlign.center, style: pixelStyle(size: w * 0.07)),
+        ],
+      ),
+    );
+  }
+
+  Widget _timeUp(double w) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: w * 0.03),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: w * 0.012),
+        decoration: Brutal.box(color: AppColors.red, borderWidth: 2, shadowOffset: const Offset(2, 2)),
+        child: Text('⏰ ${game.t(UiText.timeUp)}', style: pixelStyle(size: w * 0.05, color: AppColors.paper)),
+      ),
+    );
+  }
+
+  /// لوحة اختيار الخسران جوه الكارت (الهوست بس)
   Widget _choosePanel(double w) {
     final prompt = rule.prompt ?? UiText.tapToPickLoser;
     final gap = w * 0.03;
@@ -510,6 +271,7 @@ class _CardFront extends StatelessWidget {
       return SingleChildScrollView(
         child: Column(
           children: [
+            if (game.timedOut) _timeUp(w),
             Headline(game.t(prompt), size: w * 0.07, align: TextAlign.center),
             // تحذير الكادو
             if (game.caduActive) _warning(w, game.t(fillText(UiText.caduWarn, {'n': game.caduCards.length}))),
@@ -643,7 +405,7 @@ class _CardFront extends StatelessWidget {
             ),
           ),
         ),
-        if (hint != null) _OkButton(w: w, text: hint),
+        if (hint != null) OkButton(w: w, text: hint),
       ],
     );
   }
@@ -683,6 +445,109 @@ class _CardFront extends StatelessWidget {
           style: TextStyle(fontSize: w * 0.045, fontWeight: FontWeight.w800, color: AppColors.ink),
         ),
       ],
+    );
+  }
+}
+
+// =================================================================
+// عداد مؤقت السؤال: بيتحدث لوحده (من غير ما يعيد رسم باقي الشاشة)
+// =================================================================
+class CountdownBadge extends StatefulWidget {
+  final DateTime endsAt;
+  final double size;
+  const CountdownBadge({super.key, required this.endsAt, required this.size});
+
+  @override
+  State<CountdownBadge> createState() => _CountdownBadgeState();
+}
+
+class _CountdownBadgeState extends State<CountdownBadge> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // بنحدّث 4 مرات في الثانية عشان الرقم يتغير في وقته بالظبط
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final left = widget.endsAt.difference(DateTime.now());
+    final seconds = max(0, (left.inMilliseconds / 1000).ceil());
+    final urgent = seconds <= 5;
+    if (seconds == 0) _timer?.cancel();
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: widget.size,
+      height: widget.size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: urgent ? AppColors.red : AppColors.yellow,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.ink, width: 2.5),
+        boxShadow: Brutal.hardShadow(offset: const Offset(3, 3)),
+      ),
+      child: Text('$seconds', textDirection: TextDirection.ltr, style: rankStyle(size: widget.size * 0.45, color: urgent ? AppColors.paper : AppColors.ink)),
+    );
+  }
+}
+
+// =================================================================
+// تحذير القنبلة: في آخر 5 ثواني الستيكر بينبض أسرع ويحمر (من غير أرقام عشان الوقت يفضل سر)
+// =================================================================
+class BombWarning extends StatefulWidget {
+  final DateTime? endsAt;
+  final Widget child;
+  const BombWarning({super.key, required this.endsAt, required this.child});
+
+  @override
+  State<BombWarning> createState() => _BombWarningState();
+}
+
+class _BombWarningState extends State<BombWarning> {
+  Timer? _timer;
+  bool _final = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: 300), (_) {
+      final endsAt = widget.endsAt;
+      final isFinal = endsAt != null && endsAt.difference(DateTime.now()).inMilliseconds <= 5000;
+      if (isFinal != _final && mounted) setState(() => _final = isFinal); // بنعيد الرسم مرة واحدة بس
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Pulse(
+      key: ValueKey(_final),
+      scale: _final ? 1.25 : 1.12,
+      duration: Duration(milliseconds: _final ? 180 : 450),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _final ? AppColors.red.withValues(alpha: 0.35) : Colors.transparent,
+        ),
+        child: widget.child,
+      ),
     );
   }
 }

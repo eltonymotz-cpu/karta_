@@ -4,18 +4,19 @@
 // كل نمط جديد = اسم ووصف + قاعدة لكل كارت من الـ 13 (A, K, Q, J, 10 ... 2)
 // الأنماط بتتحفظ في Supabase (وعلى الجهاز) وبتظهر في شاشة الإعداد على طول.
 // =================================================================
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
+import '../config.dart';
 import '../data/game_modes.dart';
 import '../data/texts.dart';
 import '../game/game_controller.dart';
+import '../services/admin_auth.dart';
 import '../services/mode_store.dart';
-import '../config.dart';
+import '../services/storage_service.dart';
 import '../theme.dart';
+import '../widgets/card_face.dart';
 import '../widgets/common.dart';
+import 'card_library_screen.dart';
 
 // =================================================================
 // قائمة الأنماط
@@ -70,9 +71,25 @@ class _AdminScreenState extends State<AdminScreen> {
       ),
     );
     if (yes != true) return;
-    await ModeStore.delete(id);
-    if (game.modeId == id && !resetting) game.setMode('classic');
-    if (mounted) setState(() {});
+    final mode = allModes[id];
+    final error = await ModeStore.delete(id);
+    if (!mounted) return;
+    if (error != null) {
+      // الحذف فشل: مفيش حاجة اتغيرت، ونعرض السبب
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error, style: const TextStyle(fontWeight: FontWeight.w800)), backgroundColor: AppColors.red),
+      );
+      return;
+    }
+    // صورة النمط اللي اتمسح مبقتش مستخدمة
+    if (!resetting) StorageService.deleteByUrl(mode?.image);
+    game.modesChanged();
+    setState(() {});
+  }
+
+  Future<void> _logout() async {
+    await AdminAuth.signOut();
+    game.closeAdmin();
   }
 
   @override
@@ -106,7 +123,34 @@ class _AdminScreenState extends State<AdminScreen> {
                     Text(game.t(UiText.savedLocalOnly),
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.red)),
                   ],
+                  // الحساب اللي داخل بيه + خروج
+                  if (AdminAuth.isLoggedIn) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(game.t(fillText(UiText.loggedInAs, {'email': AdminAuth.email!})),
+                              style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                        ),
+                        TextButton.icon(
+                          onPressed: _logout,
+                          icon: const Icon(Icons.logout, size: 18, color: AppColors.red),
+                          label: Text(game.t(UiText.logout), style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 20),
+                  // مكتبة الكروت: كل الكروت في كل الأنماط (تعديل الشكل والمحتوى والإعدادات)
+                  BrutalButton(
+                    label: '🃏 ${game.t(UiText.cardLibrary)}',
+                    color: AppColors.teal,
+                    onTap: () async {
+                      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CardLibraryScreen(game: game)));
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   BrutalButton(label: '+ ${game.t(UiText.newMode)}', onTap: () => _openEditor(null)),
                   const SizedBox(height: 24),
                   // الأنماط اللي الأدمن ضافها
@@ -199,9 +243,11 @@ class _RuleDraft {
   final promptFr = TextEditingController();
   RuleType type = RuleType.assign;
   bool silence = false;
+  CardRule? original; // القاعدة الأصلية (عشان التصميم والإعدادات اللي مش في المحرر ده تفضل زي ما هي)
 
   /// نملا الخانات من قاعدة موجودة
   void fill(CardRule rule) {
+    original = rule;
     emoji.text = rule.emoji;
     titleAr.text = rule.title.ar;
     titleFr.text = rule.title.fr;
@@ -213,15 +259,18 @@ class _RuleDraft {
     silence = rule.setsSilence;
   }
 
-  /// نحوّل الخانات لقاعدة
+  /// نحوّل الخانات لقاعدة (التصميم وباقي الإعدادات بتتنقل من القاعدة الأصلية زي ما هي)
   CardRule build() {
     final hasPrompt = promptAr.text.trim().isNotEmpty || promptFr.text.trim().isNotEmpty;
-    return CardRule(
+    final base = original ??
+        CardRule(emoji: '🃏', title: const LText('', ''), description: const LText('', ''), type: type);
+    return base.copyWith(
       emoji: emoji.text.trim().isEmpty ? '🃏' : emoji.text.trim(),
       title: LText(titleAr.text.trim(), titleFr.text.trim()),
       description: LText(descAr.text.trim(), descFr.text.trim()),
       type: type,
       prompt: hasPrompt ? LText(promptAr.text.trim(), promptFr.text.trim()) : null,
+      clearPrompt: !hasPrompt,
       setsSilence: silence,
     );
   }
@@ -267,7 +316,11 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
   final _descFr = TextEditingController();
   final Map<String, _RuleDraft> _drafts = {for (final r in cardRanks) r: _RuleDraft()};
   final List<_ExtraDraft> _extras = [];  // الكروت الزيادة
-  String? _image;                        // صورة النمط (base64)
+  String? _image;                        // صورة النمط (رابط في Supabase Storage)
+  String? _originalImage;                // الصورة اللي كانت محفوظة قبل التعديل
+  final Set<String> _newUploads = {};    // صور اترفعت في الجلسة دي (بتتمسح لو خرجنا من غير حفظ)
+  bool _saved = false;
+  bool _uploading = false;
   String _copyFrom = 'classic';
   bool _saving = false;
 
@@ -286,6 +339,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
       _descAr.text = existing.description.ar;
       _descFr.text = existing.description.fr;
       _image = existing.image;
+      _originalImage = existing.image;
       _extras.addAll(existing.extraCards.map(_ExtraDraft.from));
       _fillCardsFrom(widget.modeId!);
     } else {
@@ -313,24 +367,35 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
     for (final x in _extras) {
       x.dispose();
     }
+    // خرجنا من غير حفظ: نمسح الصور اللي اترفعت ومااتستخدمتش
+    if (!_saved) {
+      for (final url in _newUploads) {
+        StorageService.deleteByUrl(url);
+      }
+    }
     super.dispose();
   }
 
   /// اختيار صورة للنمط من الجهاز (بنصغّرها عشان تتحفظ بسرعة)
   Future<void> _pickImage() async {
-    try {
-      final file = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 480,
-        maxHeight: 480,
-        imageQuality: 75,
-      );
-      if (file == null) return;
-      final bytes = await file.readAsBytes();
-      setState(() => _image = base64Encode(bytes));
-    } catch (_) {
-      _snack(game.t(UiText.imageFailed), AppColors.red);
+    setState(() => _uploading = true);
+    final result = await StorageService.pickAndUpload(folder: 'modes', maxSide: 480);
+    if (!mounted) return;
+    setState(() => _uploading = false);
+    if (result.error != null) return _snack(result.error!, AppColors.red);
+    if (result.url == null) return; // المستخدم لغى
+    _replaceImage(result.url!);
+  }
+
+  /// تغيير الصورة: القديمة بتتمسح من Storage بعد ما الحفظ ينجح بس
+  void _replaceImage(String? url) {
+    final old = _image;
+    if (old != null && old != _originalImage && _newUploads.contains(old)) {
+      StorageService.deleteByUrl(old); // صورة اترفعت دلوقتي واتغيرت قبل الحفظ
+      _newUploads.remove(old);
     }
+    if (url != null) _newUploads.add(url);
+    setState(() => _image = url);
   }
 
   /// هل الكروت الزيادة سليمة؟ (ليها اسم وعنوان، ومفيش اسم متكرر أو زي كارت من الـ 13)
@@ -375,6 +440,10 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
     if (error != null) {
       _snack(game.t(fillText(UiText.saveFailed, {'error': error})), AppColors.red);
     } else {
+      _saved = true;
+      // الصورة القديمة مبقتش مستخدمة: نمسحها من Storage
+      if (_originalImage != null && _originalImage != _image) StorageService.deleteByUrl(_originalImage);
+      game.modesChanged();
       _snack(game.t(AppConfig.hasSupabase ? UiText.saved : UiText.savedLocalOnly), const Color(0xFF3DBE5B));
       Navigator.of(context).pop();
     }
@@ -435,23 +504,25 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                             decoration: Brutal.box(color: AppColors.bg, borderWidth: 2, shadowOffset: Offset.zero),
                             child: _image == null
                                 ? const Center(child: StickerImage(Sticker.magnifier, size: 34))
-                                : Image.memory(base64Decode(_image!), fit: BoxFit.cover),
+                                : imageFromRef(_image!),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                BrutalButton(
-                                  label: game.t(UiText.pickImage),
-                                  onTap: _pickImage,
-                                  showArrow: false,
-                                  height: 40,
-                                  fontSize: 14,
-                                ),
-                                if (_image != null)
+                                _uploading
+                                    ? const Center(child: CircularProgressIndicator(color: AppColors.ink))
+                                    : BrutalButton(
+                                        label: game.t(UiText.pickImage),
+                                        onTap: _pickImage,
+                                        showArrow: false,
+                                        height: 40,
+                                        fontSize: 14,
+                                      ),
+                                if (_image != null && !_uploading)
                                   TextButton(
-                                    onPressed: () => setState(() => _image = null),
+                                    onPressed: () => _replaceImage(null),
                                     child: Text(game.t(UiText.removeImage),
                                         style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
                                   ),
@@ -603,7 +674,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
             height: 56,
             alignment: Alignment.center,
             color: color == AppColors.ink ? styleFor(label).color : color,
-            child: Text(label, style: pixelStyle(size: 20)),
+            child: Text(label, textDirection: TextDirection.ltr, style: rankStyle(size: 20)),
           ),
           title: Text(
             '${d.emoji.text}  ${game.lang == AppLang.ar ? d.titleAr.text : d.titleFr.text}',

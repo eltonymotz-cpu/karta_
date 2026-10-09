@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../data/game_modes.dart';
 import '../data/texts.dart';
 import '../game/game_controller.dart';
+import '../game/game_settings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 
@@ -125,6 +126,8 @@ class _SetupScreenState extends State<SetupScreen> {
                         const SizedBox(height: 10),
                         // الأنماط الأساسية + اللي الأدمن ضافها
                         for (final entry in allModes.entries) _modeOption(entry.key, entry.value),
+                        const SizedBox(height: 26),
+                        _settingsBox(),
                         const SizedBox(height: 22),
                         BrutalButton(label: game.t(UiText.start), onTap: _start),
                       ],
@@ -257,6 +260,66 @@ class _SetupScreenState extends State<SetupScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// إعدادات اللعبة: مؤقت كروت الأسئلة + مدة القنبلة (بتتحفظ على الجهاز)
+  Widget _settingsBox() {
+    final s = game.settings;
+    Widget choice(String label, bool selected, VoidCallback onTap) {
+      return GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: Brutal.box(
+            color: selected ? AppColors.yellow : AppColors.paper,
+            borderWidth: 2,
+            shadowOffset: selected ? const Offset(3, 3) : const Offset(1, 1),
+          ),
+          child: Text(label, style: pixelStyle(size: 14)),
+        ),
+      );
+    }
+
+    return RetroWindow(
+      title: game.t(UiText.gameSettings),
+      barColor: AppColors.blue,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('⏱ ${game.t(UiText.questionTimer)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+          Text(game.t(UiText.questionTimerHint), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final seconds in GameSettings.questionOptions)
+                choice(
+                  seconds == 0 ? game.t(UiText.off) : '$seconds ${game.t(UiText.sec)}',
+                  s.questionSeconds == seconds,
+                  () => game.updateSettings(questionSeconds: seconds),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text('💣 ${game.t(UiText.bombRange)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+          Text(game.t(UiText.bombRangeHint), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final max in GameSettings.bombMaxOptions)
+                choice(
+                  '${GameSettings.bombMinSeconds}–$max ${game.t(UiText.sec)}',
+                  s.bombMaxSeconds == max,
+                  () => game.updateSettings(bombMaxSeconds: max),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
