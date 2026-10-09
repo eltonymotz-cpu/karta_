@@ -86,9 +86,19 @@ class _ViewerBanner extends StatelessWidget {
   final GameController game;
   const _ViewerBanner({required this.game});
 
+  /// القعدات اللي فتحنا فيها "إنت مين؟" لوحدها (مرة واحدة بس لكل قعدة)
+  static final Set<String> _autoAsked = {};
+
   @override
   Widget build(BuildContext context) {
     final mine = game.myPlayerIndex;
+    // أول ما اللاعب يدخل القعدة: نسأله هو مين على طول (عشان يقدر يسحب في دوره)
+    final code = game.roomCode;
+    if (mine == null && code != null && game.players.isNotEmpty && _autoAsked.add(code)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) _pickSeat(context);
+      });
+    }
     final text = mine == null
         ? game.t(UiText.pickYourSeat)
         : game.isMyTurn

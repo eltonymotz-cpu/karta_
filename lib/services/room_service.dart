@@ -74,11 +74,7 @@ class RoomService {
     listeners.forEach((event, callback) {
       channel.onBroadcast(
         event: event,
-        callback: (message) {
-          // الرسالة بتوصل وجواها "payload" فيه البيانات اللي اتبعتت
-          final payload = message['payload'];
-          callback(payload is Map ? Map<String, dynamic>.from(payload) : message);
-        },
+        callback: (message) => callback(unwrap(message)),
       );
     });
     channel.subscribe((status, error) {
@@ -98,7 +94,17 @@ class RoomService {
 
   void _send(String event, Map<String, dynamic> payload) {
     if (!connected) return;
-    _channel?.sendBroadcastMessage(event: event, payload: payload);
+    // البيانات بتتبعت جوه "data": Supabase بيحط "type" و "event" بتوعه فوق الرسالة،
+    // فلو بعتنا البيانات على طول كانت "type": "draw" بتتمسح وتبقى "broadcast"
+    // (ده كان سبب إن موبايلات اللاعيبة ماكانتش بتقدر تسحب)
+    _channel?.sendBroadcastMessage(event: event, payload: {'data': payload});
+  }
+
+  /// بيطلّع بياناتنا من رسالة Supabase (أياً كان شكلها: مسطحة أو جوه payload)
+  static Map<String, dynamic> unwrap(Map<String, dynamic> message) {
+    final inner = message['payload'] is Map ? Map<String, dynamic>.from(message['payload'] as Map) : message;
+    final data = inner['data'];
+    return data is Map ? Map<String, dynamic>.from(data) : inner;
   }
 
   /// قفل القعدة
