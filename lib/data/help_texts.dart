@@ -126,6 +126,23 @@ class HelpText {
         'Marraro el mobile besor3a! Fe akher 5 sawany el tekka btesarra3 wel 2onbela bte7mar. Elly el mobile fe edo wa2t el enfegar byekhsar.',
   );
 
+  // ---------- الساعة والترتيب والتصفيق والإجابة ----------
+  static const extrasTitle = LText('الساعة والترتيب والتصفيق', 'El sa3a wel tarteeb wel tasfee2');
+  static const extras = LText(
+    '• ⏱ ساعة لكل لاعب: بتعد لفوق من أول ما يسحب الكارت لحد ما دوره يخلص، وبتظهر تحت اسمه. من "الأدوار والوقت" الهوست يقدر يوقفها مؤقتاً، يكمّلها، ينهي الدور، ويسجل "جاوب" أو "ماجاوبش". وقت كل دور بيتحفظ لوحده.\n'
+        '• ⏭ "عدّي الدور": الهوست يعدّي دور لاعب من غير ما يسحب.\n'
+        '• 🏆 الترتيب لايف: الأقل كروت هو الأول، والمتعادلين ليهم نفس المركز. على الموبايل شريط صغير فوق الترابيزة (دوس عليه للتفاصيل)، وعلى الكمبيوتر لوحة على الجنب.\n'
+        '• 👏 زرار التصفيق: في أكتر من موبايل كل لاعب يدوس الزرار من موبايله، واللعبة بتعرض مين صقّف الأول، ولما الهوست يدوس على الكارت التصفيق بيتقفل وبيظهر مين الأخير وزرار يدّيله الكارت.\n'
+        '• 👁 الإجابة: لو الكارت ليه إجابة، الهوست بس يقدر يكشفها، وبتظهر لكل اللاعيبة.\n'
+        '• 🌙 الوضع الغامق: زرار القمر جنب اللغة، والاختيار بيتحفظ على الجهاز.',
+    '• ⏱ Sa3a le kol la3eb: bt3od le fo2 men awel ma yes7ab el kart le7ad ma doro ykhallas, w btezhar ta7t esmo. Men "El adwar wel wa2t" el host ye2dar ywa22afha, ykammelha, yenhy el dor, w ysaggel "Gaweb" aw "Magawebsh". Wa2t kol dor byet7efez lewa7do.\n'
+        '• ⏭ "3addy el dor": el host y3addy dor la3eb men gher ma yes7ab.\n'
+        '• 🏆 El tarteeb live: el a2al kroot howa el awel, wel met3adleen leehom nafs el markaz. 3al mobile shereet soghayar fo2 el tarabeeza, w 3al computer lo7a 3al ganb.\n'
+        '• 👏 Zorar el tasfee2: fe aktar men mobile kol la3eb ydoos el zorar men mobilo, wel le3ba bt3red meen sa22af el awel, w lama el host ydoos 3al kart el tasfee2 byet2efel w byezhar meen el akher.\n'
+        '• 👁 El egaba: law el kart leeh egaba, el host bas ye2dar yekshefha, w btezhar le kol el la3eeba.\n'
+        '• 🌙 El wad3 el ghame2: zorar el 2amar ganb el logha, wel ekhtyar byet7efez 3al gehaz.',
+  );
+
   // ---------- الكروت الخاصة ----------
   static const specialTitle = LText('الكروت الخاصة', 'El kroot el khassa');
   static const special = LText(

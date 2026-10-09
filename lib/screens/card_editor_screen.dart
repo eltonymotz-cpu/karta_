@@ -47,6 +47,11 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
   final _descFr = TextEditingController();
   final _promptAr = TextEditingController();
   final _promptFr = TextEditingController();
+  final _answerAr = TextEditingController();
+  final _answerFr = TextEditingController();
+  final _clapTextAr = TextEditingController();
+  final _clapTextFr = TextEditingController();
+  final _clapIcon = TextEditingController();
 
   // ---------------- اللعب ----------------
   RuleType _type = RuleType.assign;
@@ -55,6 +60,8 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
   bool _timed = false;
   int? _timerSeconds;
   int _copies = 2;
+  bool _clapOn = false;
+  ClapButtonStyle _clapStyle = const ClapButtonStyle();
 
   // ---------------- الشكل ----------------
   int? _bg, _bar, _text, _border, _back;
@@ -119,6 +126,13 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
     _timed = rule.timed;
     _timerSeconds = rule.timerSeconds;
     _copies = copies;
+    _answerAr.text = rule.answer?.ar ?? '';
+    _answerFr.text = rule.answer?.fr ?? '';
+    _clapOn = rule.hasClapButton;
+    _clapStyle = rule.clapStyle;
+    _clapTextAr.text = rule.clapStyle.text?.ar ?? '';
+    _clapTextFr.text = rule.clapStyle.text?.fr ?? '';
+    _clapIcon.text = rule.clapStyle.icon;
     final d = rule.design;
     _bg = d.bg;
     _bar = d.bar;
@@ -142,7 +156,23 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
 
   @override
   void dispose() {
-    for (final c in [_label, _emoji, _titleAr, _titleFr, _subAr, _subFr, _descAr, _descFr, _promptAr, _promptFr]) {
+    for (final c in [
+      _label,
+      _emoji,
+      _titleAr,
+      _titleFr,
+      _subAr,
+      _subFr,
+      _descAr,
+      _descFr,
+      _promptAr,
+      _promptFr,
+      _answerAr,
+      _answerFr,
+      _clapTextAr,
+      _clapTextFr,
+      _clapIcon,
+    ]) {
       c.dispose();
     }
     // خرجنا من غير حفظ: نمسح الصور اللي اترفعت ومااتستخدمتش
@@ -196,20 +226,32 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
         titleOnBack: _titleOnBack,
       ),
       updatedAt: stamp ? DateTime.now().toIso8601String() : null,
+      clapButton: _clapOn && CardRule.clapAllowedFor(_type),
+      clapStyle: _clapStyle.copyWith(
+        text: optional(_clapTextAr, _clapTextFr),
+        clearText: optional(_clapTextAr, _clapTextFr) == null,
+        icon: _clapIcon.text.trim().isEmpty ? '👏' : _clapIcon.text.trim(),
+      ),
+      answer: optional(_answerAr, _answerFr),
     );
   }
 
   void _snack(String text, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(text, style: const TextStyle(fontWeight: FontWeight.w800)),
-      backgroundColor: error ? AppColors.red : AppColors.green,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text, style: const TextStyle(fontWeight: FontWeight.w800)),
+        backgroundColor: error ? AppColors.red : AppColors.green,
+      ),
+    );
   }
 
   /// رفع صورة (أيقونة أو خلفية)
   Future<void> _upload(String kind) async {
     setState(() => _uploading = kind);
-    final result = await StorageService.pickAndUpload(folder: kind == 'icon' ? 'icons' : 'artwork', maxSide: kind == 'icon' ? 400 : 900);
+    final result = await StorageService.pickAndUpload(
+      folder: kind == 'icon' ? 'icons' : 'artwork',
+      maxSide: kind == 'icon' ? 400 : 900,
+    );
     if (!mounted) return;
     setState(() => _uploading = null);
     if (result.error != null) return _snack(result.error!, error: true);
@@ -318,7 +360,7 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                       labelStyle: pixelStyle(size: 14),
                       unselectedLabelStyle: pixelStyle(size: 14, weight: FontWeight.w500),
                       labelColor: AppColors.ink,
-                      indicator: const BoxDecoration(color: AppColors.yellow),
+                      indicator: BoxDecoration(color: AppColors.yellow),
                       indicatorSize: TabBarIndicatorSize.tab,
                       dividerColor: Colors.transparent,
                       tabs: [
@@ -328,16 +370,15 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                       ],
                     ),
                   ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [_contentTab(), _designTab(), _gameplayTab()],
-                    ),
-                  ),
+                  Expanded(child: TabBarView(children: [_contentTab(), _designTab(), _gameplayTab()])),
                   // ---------- الحفظ ----------
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
                     child: _saving
-                        ? const SizedBox(height: 50, child: Center(child: CircularProgressIndicator(color: AppColors.ink)))
+                        ? SizedBox(
+                            height: 50,
+                            child: Center(child: CircularProgressIndicator(color: AppColors.ink)),
+                          )
                         : BrutalButton(label: game.t(UiText.save), onTap: _save, height: 52),
                   ),
                 ],
@@ -370,6 +411,28 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
           cardsLeftLabel: game.t(UiText.cardsLeft),
           tapLabel: game.t(UiText.tapToDraw),
           actionLabel: game.t(UiText.actionCard),
+        );
+      }
+      if (_preview == 'clap' && rule.usesClap) {
+        final button = ClapButtonView(w: w, style: rule.clapStyle, defaultText: game.t(UiText.clapNow), translate: game.t);
+        return CardFrontFace(
+          width: w,
+          height: h,
+          rank: _rank,
+          suit: _suit,
+          rule: rule,
+          body: Column(
+            children: [
+              Expanded(
+                child: Align(alignment: button.alignment, child: button),
+              ),
+              Text(
+                game.t(UiText.lastClapLoses),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: w * 0.045, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
         );
       }
       return CardFrontFace(
@@ -425,21 +488,30 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
       height: 240,
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 10),
       padding: const EdgeInsets.all(8),
-      decoration: Brutal.box(color: const Color(0xFFCFDCF6), borderWidth: 2, shadowOffset: Offset.zero),
+      decoration: Brutal.box(color: AppColors.bg, borderWidth: 2, shadowOffset: Offset.zero),
       child: Row(
         children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(game.t(UiText.livePreview), style: pixelStyle(size: 12)),
-              const SizedBox(height: 8),
-              toggle('front', game.t(UiText.front)),
-              toggle('back', game.t(UiText.backFace)),
-              toggle('mobile', game.t(UiText.mobile)),
-            ],
+          // عرض ثابت لعمود الأزرار (من غيره الـ Row بيدي العمود عرض لانهائي والمعاينة ماتترسمش)
+          SizedBox(
+            width: 104,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(game.t(UiText.livePreview), style: pixelStyle(size: 12)),
+                const SizedBox(height: 8),
+                toggle('front', game.t(UiText.front)),
+                toggle('back', game.t(UiText.backFace)),
+                toggle('mobile', game.t(UiText.mobile)),
+                if (rule.usesClap) toggle('clap', game.t(UiText.previewClap)),
+              ],
+            ),
           ),
-          Expanded(child: Center(child: FittedBox(child: RepaintBoundary(child: preview)))),
+          Expanded(
+            child: Center(
+              child: FittedBox(child: RepaintBoundary(child: preview)),
+            ),
+          ),
         ],
       ),
     );
@@ -458,15 +530,21 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
         _field(game.t(UiText.ruleTitleFr), _titleFr, ltr: true),
         _field(game.t(UiText.subtitleAr), _subAr),
         _field(game.t(UiText.subtitleFr), _subFr, ltr: true),
-        Text(game.t(UiText.playerTip), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+        Text(game.t(UiText.playerTip), style: TextStyle(fontSize: 12, color: AppColors.muted)),
         const SizedBox(height: 8),
         _field(game.t(UiText.ruleDescAr), _descAr, lines: 4),
         _field(game.t(UiText.ruleDescFr), _descFr, lines: 4, ltr: true),
         _field(game.t(UiText.rulePromptAr), _promptAr),
         _field(game.t(UiText.rulePromptFr), _promptFr, ltr: true),
+        _field(game.t(UiText.answerAr), _answerAr),
+        _field(game.t(UiText.answerFr), _answerFr, ltr: true),
+        Text(game.t(UiText.answerHint), style: TextStyle(fontSize: 12, color: AppColors.muted)),
+        const SizedBox(height: 10),
         _label2(game.t(UiText.textAlign)),
-        _choices<String>(_align, [('center', game.t(UiText.alignCenter)), ('start', game.t(UiText.alignStart))],
-            (v) => _align = v),
+        _choices<String>(_align, [
+          ('center', game.t(UiText.alignCenter)),
+          ('start', game.t(UiText.alignStart)),
+        ], (v) => _align = v),
         const SizedBox(height: 12),
         SwitchListTile(
           value: _titleOnBack,
@@ -549,7 +627,10 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                   _discardUnsaved(_iconUrl, _originalIcon);
                   _iconUrl = null;
                 }),
-                child: Text(game.t(UiText.removeImage), style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
+                child: Text(
+                  game.t(UiText.removeImage),
+                  style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w800),
+                ),
               ),
           ],
         ),
@@ -563,8 +644,10 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
           onChanged: (v) => setState(() => _iconScale = v),
         ),
         _label2(game.t(UiText.iconPosition)),
-        _choices<String>(_iconPos, [('top', game.t(UiText.iconTop)), ('background', game.t(UiText.iconBackground))],
-            (v) => _iconPos = v),
+        _choices<String>(_iconPos, [
+          ('top', game.t(UiText.iconTop)),
+          ('background', game.t(UiText.iconBackground)),
+        ], (v) => _iconPos = v),
         const SizedBox(height: 14),
 
         // ---------- صورة الخلفية ----------
@@ -587,7 +670,10 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                   _discardUnsaved(_artworkUrl, _originalArtwork);
                   _artworkUrl = null;
                 }),
-                child: Text(game.t(UiText.removeImage), style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
+                child: Text(
+                  game.t(UiText.removeImage),
+                  style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w800),
+                ),
               ),
           ],
         ),
@@ -655,15 +741,20 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
               dropdownColor: AppColors.paper,
               items: [
                 for (final type in RuleType.values)
-                  DropdownMenuItem(value: type, child: Text(_typeLabel(type), style: const TextStyle(fontWeight: FontWeight.w700))),
+                  DropdownMenuItem(
+                    value: type,
+                    child: Text(_typeLabel(type), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
               ],
               onChanged: (v) => setState(() => _type = v ?? _type),
             ),
           ),
         ),
         const SizedBox(height: 4),
-        Text('${game.t(UiText.category)}: ${categoryLabel(game, _buildRule().category)}',
-            style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+        Text(
+          '${game.t(UiText.category)}: ${categoryLabel(game, _buildRule().category)}',
+          style: TextStyle(fontSize: 12, color: AppColors.muted),
+        ),
         CheckboxListTile(
           value: _silence,
           onChanged: (v) => setState(() => _silence = v ?? false),
@@ -688,6 +779,8 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
             for (final s in const [10, 20, 30, 45, 60]) (s, '$s ${game.t(UiText.sec)}'),
           ], (v) => _timerSeconds = v),
         ],
+        const SizedBox(height: 6),
+        _clapSection(),
         if (_isExtra) ...[
           const SizedBox(height: 14),
           _label2('${game.t(UiText.copies)} (${game.t(UiText.copiesHint)})'),
@@ -697,22 +790,139 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
     );
   }
 
+  /// زرار التصفيق: تشغيله + شكله (الأدمن يختار أي كارت يبقى عليه الزرار)
+  Widget _clapSection() {
+    final allowed = CardRule.clapAllowedFor(_type);
+    final on = _clapOn && allowed;
+    void update(ClapButtonStyle style) => setState(() => _clapStyle = style);
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: Brutal.box(color: on ? AppColors.paper : AppColors.bg, borderWidth: 2, shadowOffset: Offset.zero),
+      // Material شفاف: عشان مفاتيح التشغيل ترسم ضغطتها فوق لون الصندوق
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SwitchListTile(
+              value: on,
+              onChanged: allowed
+                  ? (v) => setState(() {
+                      _clapOn = v;
+                      if (v) _preview = 'clap'; // نوري الزرار في المعاينة على طول
+                    })
+                  : null,
+              title: Text(game.t(UiText.clapButton), style: const TextStyle(fontWeight: FontWeight.w900)),
+              subtitle: Text(
+                game.t(allowed ? UiText.clapButtonHint : UiText.clapNotAllowed),
+                style: const TextStyle(fontSize: 12),
+              ),
+              activeThumbColor: AppColors.ink,
+              activeTrackColor: AppColors.yellow,
+              contentPadding: EdgeInsets.zero,
+            ),
+            if (on) ...[
+              const SizedBox(height: 6),
+              Text(game.t(UiText.clapDesign), style: pixelStyle(size: 14)),
+              const SizedBox(height: 8),
+              _field(game.t(UiText.clapTextAr), _clapTextAr),
+              _field(game.t(UiText.clapTextFr), _clapTextFr, ltr: true),
+              _field(game.t(UiText.clapIcon), _clapIcon, maxLength: 4),
+              _label2(game.t(UiText.clapBg)),
+              _colors(
+                _clapStyle.bg,
+                (c) => _clapStyle = c == null ? _clapStyle.copyWith(clearBg: true) : _clapStyle.copyWith(bg: c),
+              ),
+              _label2(game.t(UiText.clapFg)),
+              _colors(
+                _clapStyle.fg,
+                (c) => _clapStyle = c == null ? _clapStyle.copyWith(clearFg: true) : _clapStyle.copyWith(fg: c),
+              ),
+              _label2(game.t(UiText.clapSize)),
+              _choices<String>(_clapStyle.size, [
+                ('s', game.t(UiText.sizeS)),
+                ('m', game.t(UiText.sizeM)),
+                ('l', game.t(UiText.sizeL)),
+              ], (v) => _clapStyle = _clapStyle.copyWith(size: v)),
+              const SizedBox(height: 8),
+              _label2(game.t(UiText.clapShape)),
+              _choices<String>(_clapStyle.shape, [
+                ('circle', game.t(UiText.shapeCircle)),
+                ('rounded', game.t(UiText.shapeRounded)),
+                ('pill', game.t(UiText.shapePill)),
+                ('square', game.t(UiText.shapeSquare)),
+              ], (v) => _clapStyle = _clapStyle.copyWith(shape: v)),
+              if (_clapStyle.shape == 'rounded') ...[
+                _label2('${game.t(UiText.clapRadius)} (${_clapStyle.radius.round()})'),
+                Slider(
+                  value: _clapStyle.radius,
+                  min: 0,
+                  max: 40,
+                  divisions: 20,
+                  activeColor: AppColors.ink,
+                  onChanged: (v) => update(_clapStyle.copyWith(radius: v)),
+                ),
+              ],
+              const SizedBox(height: 8),
+              _label2(game.t(UiText.clapPosition)),
+              _choices<String>(_clapStyle.position, [
+                ('top', game.t(UiText.posTop)),
+                ('center', game.t(UiText.posCenter)),
+                ('bottom', game.t(UiText.posBottom)),
+              ], (v) => _clapStyle = _clapStyle.copyWith(position: v)),
+              SwitchListTile(
+                value: _clapStyle.border,
+                onChanged: (v) => update(_clapStyle.copyWith(border: v)),
+                title: Text(game.t(UiText.clapBorder), style: const TextStyle(fontWeight: FontWeight.w800)),
+                activeThumbColor: AppColors.ink,
+                activeTrackColor: AppColors.yellow,
+                contentPadding: EdgeInsets.zero,
+              ),
+              SwitchListTile(
+                value: _clapStyle.animate,
+                onChanged: (v) => update(_clapStyle.copyWith(animate: v)),
+                title: Text(game.t(UiText.clapAnimate), style: const TextStyle(fontWeight: FontWeight.w800)),
+                activeThumbColor: AppColors.ink,
+                activeTrackColor: AppColors.yellow,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   String _typeLabel(RuleType type) => game.t(switch (type) {
-        RuleType.assign => UiText.typeAssign,
-        RuleType.free => UiText.typeFree,
-        RuleType.self => UiText.typeSelf,
-        RuleType.cadu => UiText.typeCadu,
-        RuleType.bomb => UiText.typeBomb,
-        RuleType.clap => UiText.typeClap,
-        RuleType.silence => UiText.typeSilence,
-      });
+    RuleType.assign => UiText.typeAssign,
+    RuleType.free => UiText.typeFree,
+    RuleType.self => UiText.typeSelf,
+    RuleType.cadu => UiText.typeCadu,
+    RuleType.bomb => UiText.typeBomb,
+    RuleType.clap => UiText.typeClap,
+    RuleType.silence => UiText.typeSilence,
+  });
 
   // =================================================================
   // عناصر مساعدة
   // =================================================================
   static const _palette = <int>[
-    0xFF3B2A2E, 0xFFFCEBD5, 0xFFFFFFFF, 0xFFDCE6FA, 0xFFF2C94C, 0xFF5DB3A4, 0xFFF08A3C, 0xFFE8585A,
-    0xFFF29BBE, 0xFF6E8EF0, 0xFF6CC468, 0xFFA98BF0, 0xFFE0A458, 0xFFFF7F6B, 0xFF4FC1C9, 0xFF8C7B8F,
+    0xFF3B2A2E,
+    0xFFFCEBD5,
+    0xFFFFFFFF,
+    0xFFDCE6FA,
+    0xFFF2C94C,
+    0xFF5DB3A4,
+    0xFFF08A3C,
+    0xFFE8585A,
+    0xFFF29BBE,
+    0xFF6E8EF0,
+    0xFF6CC468,
+    0xFFA98BF0,
+    0xFFE0A458,
+    0xFFFF7F6B,
+    0xFF4FC1C9,
+    0xFF8C7B8F,
   ];
 
   /// صف ألوان (أول مربع = الافتراضي)
@@ -729,7 +939,7 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: AppColors.ink, width: selected ? 3.5 : 1.6),
           ),
-          child: color == null ? const Icon(Icons.auto_awesome, size: 16, color: AppColors.ink) : null,
+          child: color == null ? Icon(Icons.auto_awesome, size: 16, color: AppColors.ink) : null,
         ),
       );
     }
@@ -767,7 +977,7 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
     if (_uploading == kind) {
       return Row(
         children: [
-          const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.ink)),
+          SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.ink)),
           const SizedBox(width: 8),
           Text(game.t(UiText.uploading), style: const TextStyle(fontWeight: FontWeight.w700)),
         ],
@@ -784,9 +994,9 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
   }
 
   Widget _label2(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 6, top: 4),
-        child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
-      );
+    padding: const EdgeInsets.only(bottom: 6, top: 4),
+    child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+  );
 
   Widget _field(String label, TextEditingController controller, {int lines = 1, bool ltr = false, int? maxLength}) {
     return Padding(
@@ -811,11 +1021,11 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Brutal.radius),
-                borderSide: const BorderSide(color: AppColors.ink, width: 1.6),
+                borderSide: BorderSide(color: AppColors.ink, width: 1.6),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Brutal.radius),
-                borderSide: const BorderSide(color: AppColors.ink, width: 2.5),
+                borderSide: BorderSide(color: AppColors.ink, width: 2.5),
               ),
             ),
           ),

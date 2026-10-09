@@ -101,7 +101,7 @@ class _SetupScreenState extends State<SetupScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 color: AppColors.ink,
                                 child: Text(game.t(UiText.multiDevice).toUpperCase(),
-                                    style: const TextStyle(color: AppColors.yellow, fontSize: 11, fontWeight: FontWeight.w900)),
+                                    style: TextStyle(color: AppColors.yellow, fontSize: 11, fontWeight: FontWeight.w900)),
                               )
                             else
                               const ShapeAccent(size: 12),
@@ -112,7 +112,7 @@ class _SetupScreenState extends State<SetupScreen> {
                         const SizedBox(height: 8),
                         Text(
                           game.t(UiText.subtitle),
-                          style: const TextStyle(color: AppColors.ink, fontSize: 15, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: AppColors.ink, fontSize: 15, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 20),
                         _logo(),
@@ -152,7 +152,7 @@ class _SetupScreenState extends State<SetupScreen> {
         Container(
           height: 220,
           padding: const EdgeInsets.all(12),
-          child: Center(child: Image.asset('assets/images/logo.png', fit: BoxFit.contain)),
+          child: Center(child: Image.asset(AppTheme.logo, fit: BoxFit.contain)),
         ),
         const Positioned(top: 10, right: 10, child: DotGrid(columns: 4, rows: 3)),
       ],
@@ -167,7 +167,7 @@ class _SetupScreenState extends State<SetupScreen> {
         Text(title.toUpperCase(), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
         if (hint != null) ...[
           const SizedBox(width: 6),
-          Text(hint, style: const TextStyle(color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(hint, style: TextStyle(color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w600)),
         ],
       ],
     );
@@ -191,7 +191,7 @@ class _SetupScreenState extends State<SetupScreen> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: color,
-                border: const BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
+                border: BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
               ),
               child: Text('${index + 1}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
             ),
@@ -210,14 +210,14 @@ class _SetupScreenState extends State<SetupScreen> {
                       controller: _controllers[index],
                       maxLength: 14,
                       textInputAction: TextInputAction.next,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink),
                       decoration: InputDecoration(
                         isDense: true,
                         counterText: '',
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.only(top: 2),
                         hintText: game.t(UiText.typeName),
-                        hintStyle: const TextStyle(color: AppColors.muted, fontWeight: FontWeight.w500),
+                        hintStyle: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w500),
                       ),
                     ),
                   ],
@@ -253,7 +253,7 @@ class _SetupScreenState extends State<SetupScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.add, color: AppColors.ink),
+              Icon(Icons.add, color: AppColors.ink),
               const SizedBox(width: 6),
               Text(game.t(UiText.addPlayer).toUpperCase(),
                   style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
@@ -290,7 +290,7 @@ class _SetupScreenState extends State<SetupScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('⏱ ${game.t(UiText.questionTimer)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-          Text(game.t(UiText.questionTimerHint), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          Text(game.t(UiText.questionTimerHint), style: TextStyle(fontSize: 12, color: AppColors.muted)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -306,7 +306,7 @@ class _SetupScreenState extends State<SetupScreen> {
           ),
           const SizedBox(height: 16),
           Text('💣 ${game.t(UiText.bombRange)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-          Text(game.t(UiText.bombRangeHint), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          Text(game.t(UiText.bombRangeHint), style: TextStyle(fontSize: 12, color: AppColors.muted)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -351,7 +351,7 @@ class _SetupScreenState extends State<SetupScreen> {
                     Text(game.t(mode.name).toUpperCase(),
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
                     Text(game.t(mode.description),
-                        style: const TextStyle(fontSize: 13, color: AppColors.ink, fontWeight: FontWeight.w500)),
+                        style: TextStyle(fontSize: 13, color: AppColors.ink, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),

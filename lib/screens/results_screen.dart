@@ -47,7 +47,7 @@ class ResultsScreen extends StatelessWidget {
                               width: 96,
                               height: 104,
                               padding: const EdgeInsets.all(6),
-                              child: Image.asset('assets/images/logo.png'),
+                              child: Image.asset(AppTheme.logo),
                             ),
                           ],
                         ),
@@ -125,7 +125,7 @@ class ResultsScreen extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: player.color,
-                border: const BorderDirectional(end: BorderSide(color: AppColors.ink, width: Brutal.border)),
+                border: BorderDirectional(end: BorderSide(color: AppColors.ink, width: Brutal.border)),
               ),
               child: Text(medal, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
             ),
@@ -152,7 +152,7 @@ class ResultsScreen extends StatelessWidget {
               color: AppColors.ink,
               child: Text(
                 '${player.cards.length}',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.yellow),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.yellow),
               ),
             ),
           ],

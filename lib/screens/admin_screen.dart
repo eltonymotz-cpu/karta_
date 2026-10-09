@@ -63,7 +63,7 @@ class _AdminScreenState extends State<AdminScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: Text(game.t(UiText.no), style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w900)),
+                child: Text(game.t(UiText.no), style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w900)),
               ),
             ],
           ),
@@ -121,7 +121,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   if (!AppConfig.hasSupabase) ...[
                     const SizedBox(height: 10),
                     Text(game.t(UiText.savedLocalOnly),
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.red)),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.red)),
                   ],
                   // الحساب اللي داخل بيه + خروج
                   if (AdminAuth.isLoggedIn) ...[
@@ -130,12 +130,12 @@ class _AdminScreenState extends State<AdminScreen> {
                       children: [
                         Expanded(
                           child: Text(game.t(fillText(UiText.loggedInAs, {'email': AdminAuth.email!})),
-                              style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                              style: TextStyle(fontSize: 12, color: AppColors.muted)),
                         ),
                         TextButton.icon(
                           onPressed: _logout,
-                          icon: const Icon(Icons.logout, size: 18, color: AppColors.red),
-                          label: Text(game.t(UiText.logout), style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
+                          icon: Icon(Icons.logout, size: 18, color: AppColors.red),
+                          label: Text(game.t(UiText.logout), style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
                         ),
                       ],
                     ),
@@ -157,7 +157,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   if (!customModes.keys.any((id) => !isBuiltIn(id)))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
-                      child: Text(game.t(UiText.noCustomModes), style: const TextStyle(color: AppColors.muted)),
+                      child: Text(game.t(UiText.noCustomModes), style: TextStyle(color: AppColors.muted)),
                     ),
                   for (final entry in customModes.entries)
                     if (!isBuiltIn(entry.key)) _modeRow(entry.key, entry.value),
@@ -189,7 +189,7 @@ class _AdminScreenState extends State<AdminScreen> {
               children: [
                 Text(game.t(mode.name).toUpperCase(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
                 Text(game.t(mode.description), maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                    style: TextStyle(fontSize: 12, color: AppColors.muted)),
                 // علامة "أساسي" أو "أساسي • معدّل"
                 if (builtIn)
                   Container(
@@ -198,21 +198,21 @@ class _AdminScreenState extends State<AdminScreen> {
                     color: edited ? AppColors.red : AppColors.ink,
                     child: Text(
                       edited ? '${game.t(UiText.builtIn)} • ${game.t(UiText.edited)}' : game.t(UiText.builtIn),
-                      style: const TextStyle(color: AppColors.yellow, fontSize: 10, fontWeight: FontWeight.w900),
+                      style: TextStyle(color: AppColors.yellow, fontSize: 10, fontWeight: FontWeight.w900),
                     ),
                   ),
               ],
             ),
           ),
-          IconButton(onPressed: () => _openEditor(id), icon: const Icon(Icons.edit, color: AppColors.ink)),
+          IconButton(onPressed: () => _openEditor(id), icon: Icon(Icons.edit, color: AppColors.ink)),
           // نمط جديد: مسح / نمط أساسي معدّل: رجوع للأصل / نمط أساسي زي ما هو: مفيش
           if (!builtIn)
-            IconButton(onPressed: () => _delete(id), icon: const Icon(Icons.delete_outline, color: AppColors.red))
+            IconButton(onPressed: () => _delete(id), icon: Icon(Icons.delete_outline, color: AppColors.red))
           else if (edited)
             IconButton(
               tooltip: game.t(UiText.reset),
               onPressed: () => _delete(id),
-              icon: const Icon(Icons.restore, color: AppColors.red),
+              icon: Icon(Icons.restore, color: AppColors.red),
             ),
         ],
       ),
@@ -512,7 +512,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 _uploading
-                                    ? const Center(child: CircularProgressIndicator(color: AppColors.ink))
+                                    ? Center(child: CircularProgressIndicator(color: AppColors.ink))
                                     : BrutalButton(
                                         label: game.t(UiText.pickImage),
                                         onTap: _pickImage,
@@ -524,7 +524,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                                   TextButton(
                                     onPressed: () => _replaceImage(null),
                                     child: Text(game.t(UiText.removeImage),
-                                        style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
+                                        style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
                                   ),
                               ],
                             ),
@@ -563,14 +563,14 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                     ),
                   ],
                 ),
-                Text(game.t(UiText.playerTip), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                Text(game.t(UiText.playerTip), style: TextStyle(fontSize: 12, color: AppColors.muted)),
                 const SizedBox(height: 12),
                 for (final rank in cardRanks) _rankEditor(rank),
                 const SizedBox(height: 24),
 
                 // ---------- كروت زيادة ----------
                 _section('${game.t(UiText.extraCards)} (${_extras.length})'),
-                Text(game.t(UiText.extraCardsHint), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                Text(game.t(UiText.extraCardsHint), style: TextStyle(fontSize: 12, color: AppColors.muted)),
                 const SizedBox(height: 12),
                 for (var i = 0; i < _extras.length; i++) _extraEditor(i),
                 BrutalButton(
@@ -588,7 +588,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                 ),
                 const SizedBox(height: 24),
                 _saving
-                    ? const Center(child: CircularProgressIndicator(color: AppColors.ink))
+                    ? Center(child: CircularProgressIndicator(color: AppColors.ink))
                     : BrutalButton(label: game.t(UiText.save), onTap: _save),
               ],
             ),
@@ -655,7 +655,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
     required String label,
     required _RuleDraft d,
     required Key key,
-    Color color = AppColors.ink,
+    Color? color,
     List<Widget> topFields = const [],
     VoidCallback? onDelete,
   }) {
@@ -673,7 +673,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
             width: 52,
             height: 56,
             alignment: Alignment.center,
-            color: color == AppColors.ink ? styleFor(label).color : color,
+            color: color ?? styleFor(label).color,
             child: Text(label, textDirection: TextDirection.ltr, style: rankStyle(size: 20)),
           ),
           title: Text(
@@ -682,7 +682,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w900),
           ),
-          subtitle: Text(_typeLabel(d.type), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          subtitle: Text(_typeLabel(d.type), style: TextStyle(fontSize: 12, color: AppColors.muted)),
           childrenPadding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
           children: [
             ...topFields,
@@ -724,8 +724,8 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                 alignment: AlignmentDirectional.centerEnd,
                 child: TextButton.icon(
                   onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline, color: AppColors.red),
-                  label: Text(game.t(UiText.delete), style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
+                  icon: Icon(Icons.delete_outline, color: AppColors.red),
+                  label: Text(game.t(UiText.delete), style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w800)),
                 ),
               ),
           ],
@@ -769,11 +769,11 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Brutal.radius),
-                borderSide: const BorderSide(color: AppColors.ink, width: 1.5),
+                borderSide: BorderSide(color: AppColors.ink, width: 1.5),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Brutal.radius),
-                borderSide: const BorderSide(color: AppColors.ink, width: 2.5),
+                borderSide: BorderSide(color: AppColors.ink, width: 2.5),
               ),
             ),
           ),

@@ -3,6 +3,8 @@
 // =================================================================
 import 'package:flutter/material.dart';
 
+import 'theme.dart';
+
 /// كارت واحد من الكوتشينة
 class PlayingCard {
   final String rank; // القيمة: A, K, Q, J, 10 ... 2
@@ -23,7 +25,9 @@ class PlayingCard {
 /// لاعب
 class Player {
   final String name;
-  final Color color;                         // لونه المميز في المقعد
+  final int colorIndex;                      // رقم لونه المميز (بيتغير مع الوضع الغامق/الفاتح)
   final List<PlayingCard> cards = [];        // الكروت (العقوبات) اللي أخدها
-  Player(this.name, this.color);
+  Player(this.name, this.colorIndex);
+
+  Color get color => AppColors.playerColors[colorIndex % AppColors.playerColors.length];
 }

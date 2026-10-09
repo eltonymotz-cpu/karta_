@@ -112,7 +112,7 @@ class _CardLibraryScreenState extends State<CardLibraryScreen> {
               BrutalButton(label: game.t(UiText.delete), color: AppColors.red, onTap: () => Navigator.pop(context, true)),
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: Text(game.t(UiText.no), style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w900)),
+                child: Text(game.t(UiText.no), style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w900)),
               ),
             ],
           ),
@@ -229,7 +229,7 @@ class _CardLibraryScreenState extends State<CardLibraryScreen> {
                             const SizedBox(width: 8),
                             LangToggle(game: game),
                             const Spacer(),
-                            if (_busy) const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.ink)),
+                            if (_busy) SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.ink)),
                           ],
                         ),
                         const SizedBox(height: 14),
@@ -241,7 +241,7 @@ class _CardLibraryScreenState extends State<CardLibraryScreen> {
                         _filters(),
                         const SizedBox(height: 10),
                         Text(game.t(fillText(UiText.cardsCount, {'n': cards.length})),
-                            style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w700)),
+                            style: TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 8),
                       ],
                     ),
@@ -291,17 +291,17 @@ class _CardLibraryScreenState extends State<CardLibraryScreen> {
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             isDense: true,
-            prefixIcon: const Icon(Icons.search, color: AppColors.ink),
+            prefixIcon: Icon(Icons.search, color: AppColors.ink),
             hintText: game.t(UiText.searchCards),
             filled: true,
             fillColor: AppColors.paper,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Brutal.radius),
-              borderSide: const BorderSide(color: AppColors.ink, width: 2),
+              borderSide: BorderSide(color: AppColors.ink, width: 2),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Brutal.radius),
-              borderSide: const BorderSide(color: AppColors.ink, width: 2.5),
+              borderSide: BorderSide(color: AppColors.ink, width: 2.5),
             ),
           ),
         ),
@@ -351,7 +351,7 @@ class _CardLibraryScreenState extends State<CardLibraryScreen> {
                 height: 86,
                 decoration: BoxDecoration(
                   color: colors.bg,
-                  border: const BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
+                  border: BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
                 ),
                 child: Column(
                   children: [
@@ -396,7 +396,7 @@ class _CardLibraryScreenState extends State<CardLibraryScreen> {
                         padding: const EdgeInsets.only(top: 3),
                         child: Text(
                           game.t(fillText(UiText.updatedAt, {'date': '${updated.year}-${_two(updated.month)}-${_two(updated.day)}'})),
-                          style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                          style: TextStyle(fontSize: 10, color: AppColors.muted),
                         ),
                       ),
                   ],
@@ -411,7 +411,7 @@ class _CardLibraryScreenState extends State<CardLibraryScreen> {
               onChanged: _busy ? null : (_) => _toggle(card),
             ),
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: AppColors.ink),
+              icon: Icon(Icons.more_vert, color: AppColors.ink),
               color: AppColors.paper,
               onSelected: (action) {
                 switch (action) {

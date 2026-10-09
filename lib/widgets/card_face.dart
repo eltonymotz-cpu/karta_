@@ -12,12 +12,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../data/game_modes.dart';
+import '../data/texts.dart';
 import '../theme.dart';
 import 'common.dart';
 
 /// صورة من رابط (Supabase Storage) أو من base64 (الصور القديمة)
 Widget imageFromRef(String ref, {BoxFit fit = BoxFit.cover, double? width, double? height}) {
-  Widget broken() => SizedBox(width: width, height: height, child: const Icon(Icons.broken_image, color: AppColors.muted));
+  Widget broken() => SizedBox(width: width, height: height, child: Icon(Icons.broken_image, color: AppColors.muted));
   if (ref.startsWith('http')) {
     return Image.network(
       ref,
@@ -47,6 +48,10 @@ Sticker stickerFor(CardRule rule, String rank) {
 }
 
 /// ألوان الكارت النهائية (التصميم المخصص أو الافتراضي)
+/// لون نص واضح فوق أي خلفية (غامق فوق الفاتح، وفاتح فوق الغامق)
+Color readableOn(Color background) =>
+    background.computeLuminance() > 0.45 ? const Color(0xFF3B2A2E) : const Color(0xFFF2F4F6);
+
 class ResolvedCardColors {
   final Color bar, bg, text, border;
   const ResolvedCardColors(this.bar, this.bg, this.text, this.border);
@@ -54,10 +59,14 @@ class ResolvedCardColors {
   factory ResolvedCardColors.of(CardRule rule, String rank) {
     final style = styleFor(rank);
     final d = rule.design;
+    // الوضع الغامق: شريط العنوان بيغمق شوية (زي الشبابيك في التصميم الغامق)
+    final bar = d.bar != null ? Color(d.bar!) : style.color;
+    final bg = d.bg != null ? Color(d.bg!) : style.tint;
     return ResolvedCardColors(
-      d.bar != null ? Color(d.bar!) : style.color,
-      d.bg != null ? Color(d.bg!) : style.tint,
-      d.text != null ? Color(d.text!) : AppColors.ink,
+      AppColors.dark && d.bar == null ? Color.lerp(bar, Colors.black, 0.3)! : bar,
+      bg,
+      // لو الأدمن اختار خلفية بس من غير لون نص: نختار نص غامق أو فاتح حسب الخلفية عشان يتقري
+      d.text != null ? Color(d.text!) : (d.bg != null ? readableOn(bg) : AppColors.ink),
       d.border != null ? Color(d.border!) : AppColors.ink,
     );
   }
@@ -318,7 +327,7 @@ class CardBackFace extends StatelessWidget {
   });
 
   /// لون ضهر كروت الأكشن (بمبي فاتح دافي عشان يتميز عن الأزرق العادي)
-  static const actionBackColor = Color(0xFFFBD9CF);
+  static Color get actionBackColor => AppColors.dark ? const Color(0xFF3A211B) : const Color(0xFFFBD9CF);
 
   @override
   Widget build(BuildContext context) {
@@ -363,7 +372,7 @@ class CardBackFace extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(w * 0.1, w * (action ? 0.03 : 0.07), w * 0.1, w * 0.02),
-                  child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+                  child: Image.asset(AppTheme.logo, fit: BoxFit.contain),
                 ),
               ),
               if (titleOnBack != null)
@@ -513,6 +522,8 @@ class PatternPainter extends CustomPainter {
 
 /// إطار نقط من جوه زرار "OK"
 class _DottedBorderPainter extends CustomPainter {
+  final bool dark = AppColors.dark;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = AppColors.ink;
@@ -528,7 +539,7 @@ class _DottedBorderPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => (oldDelegate as _DottedBorderPainter).dark != dark;
 }
 
 /// حدود متقطعة للكارت (لو الأدمن اختار "dashed")
@@ -553,4 +564,81 @@ class _DashedBorderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DashedBorderPainter old) => old.color != color;
+}
+
+// =================================================================
+// زرار التصفيق (التسقيف): شكله جاي من إعدادات الكارت (الأدمن بيغيّره من المحرر)
+// =================================================================
+class ClapButtonView extends StatelessWidget {
+  final double w;              // عرض الكارت (كل المقاسات نسبة منه)
+  final ClapButtonStyle style;
+  final String defaultText;    // "صقّف!" باللغة الحالية لو الأدمن ماكتبش كلام
+  final String Function(LText) translate;
+  final bool enabled;          // false = شكل باهت (التصفيق مقفول أو صقّفت خلاص)
+  final String? overrideText;  // كلام بدل كلام الزرار (مثلاً "✔ صقّفت!")
+
+  const ClapButtonView({
+    super.key,
+    required this.w,
+    required this.style,
+    required this.defaultText,
+    required this.translate,
+    this.enabled = true,
+    this.overrideText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final factor = switch (style.size) { 's' => 0.42, 'm' => 0.53, _ => 0.64 };
+    final width = w * factor;
+    final circle = style.shape == 'circle';
+    final height = circle || style.shape == 'square' ? width : width * 0.46;
+    final bg = style.bg != null ? Color(style.bg!) : AppColors.yellow;
+    final fg = style.fg != null ? Color(style.fg!) : (style.bg != null ? readableOn(bg) : AppColors.ink);
+    final text = overrideText ?? (style.text == null ? defaultText : translate(style.text!));
+    final radius = switch (style.shape) {
+      'pill' => BorderRadius.circular(height),
+      'square' => BorderRadius.circular(4),
+      'rounded' => BorderRadius.circular(style.radius),
+      _ => null,
+    };
+    final horizontal = !circle && style.shape != 'square';
+
+    final label = Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: pixelStyle(size: width * 0.13, color: fg));
+    final icon = Text(style.icon, style: TextStyle(fontSize: width * (horizontal ? 0.16 : 0.28)));
+
+    Widget button = AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: enabled ? 1 : 0.55,
+      child: Container(
+        width: width,
+        height: height,
+        padding: EdgeInsets.symmetric(horizontal: width * 0.06),
+        decoration: BoxDecoration(
+          shape: circle ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: radius,
+          color: bg,
+          border: style.border ? Border.all(color: AppColors.ink, width: 3) : null,
+          boxShadow: style.border && enabled ? Brutal.hardShadow(offset: const Offset(6, 6)) : null,
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: horizontal
+              ? Row(mainAxisSize: MainAxisSize.min, children: [icon, SizedBox(width: width * 0.04), label])
+              : Column(mainAxisSize: MainAxisSize.min, children: [icon, label]),
+        ),
+      ),
+    );
+    if (style.animate && enabled) {
+      button = Pulse(scale: 1.06, duration: const Duration(milliseconds: 300), child: button);
+    }
+    return button;
+  }
+
+  /// مكان الزرار جوه الكارت
+  Alignment get alignment => switch (style.position) {
+        'top' => Alignment.topCenter,
+        'bottom' => Alignment.bottomCenter,
+        _ => Alignment.center,
+      };
 }

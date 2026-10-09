@@ -17,6 +17,7 @@ import '../theme.dart';
 import '../widgets/big_card.dart';
 import '../widgets/common.dart';
 import '../widgets/game_fx.dart';
+import '../widgets/game_panels.dart';
 import '../widgets/player_seat.dart';
 import '../widgets/qr_dialog.dart';
 
@@ -30,9 +31,12 @@ class GameScreen extends StatelessWidget {
       backgroundColor: AppColors.bg,
       body: AppBackground(
         child: SafeArea(
-          child: Center(
-            // على الشاشات العريضة (كمبيوتر/تابلت) نخلي اللعبة بعرض مناسب في النص
-            child: ConstrainedBox(
+          child: LayoutBuilder(builder: (context, constraints) {
+            final playing = !(game.isViewer && !game.viewerHasState);
+            // الشاشات العريضة: الترتيب لايف على جنب، والموبايل: شريط صغير فوق الترابيزة
+            final wide = constraints.maxWidth >= 860 && playing;
+            final table = ConstrainedBox(
+              // على الشاشات العريضة (كمبيوتر/تابلت) نخلي اللعبة بعرض مناسب في النص
               constraints: const BoxConstraints(maxWidth: 560),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
@@ -40,19 +44,35 @@ class GameScreen extends StatelessWidget {
                   children: [
                     _TopBar(game: game),
                     // موبايل اللاعب اللي لسه مستني صاحب القعدة يبدأ
-                    if (game.isViewer && !game.viewerHasState)
+                    if (!playing)
                       Expanded(child: _WaitingForHost(game: game))
                     else ...[
                       if (game.isViewer) _ViewerBanner(game: game),
                       _StatusChips(game: game),
+                      if (!wide) ...[
+                        const SizedBox(height: 6),
+                        LiveRankingStrip(game: game, onTap: () => showRankingSheet(context, game)),
+                      ],
                       const SizedBox(height: 4),
                       Expanded(child: _Table(game: game)),
                     ],
                   ],
                 ),
               ),
-            ),
-          ),
+            );
+            if (!wide) return Center(child: table);
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(child: table),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 60, 12, 12),
+                  child: SizedBox(width: 250, child: LiveRankingPanel(game: game)),
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );
@@ -91,11 +111,11 @@ class _ViewerBanner extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.person, size: 18, color: AppColors.ink),
+                Icon(Icons.person, size: 18, color: AppColors.ink),
                 const SizedBox(width: 6),
                 Flexible(child: Text(text, style: pixelStyle(size: 14))),
                 const SizedBox(width: 6),
-                const Icon(Icons.swap_horiz, size: 18, color: AppColors.ink),
+                Icon(Icons.swap_horiz, size: 18, color: AppColors.ink),
               ],
             ),
           ),
@@ -125,7 +145,7 @@ class _ViewerBanner extends StatelessWidget {
               if (game.myPlayerIndex != null)
                 TextButton(
                   onPressed: () => Navigator.pop(context, -1),
-                  child: Text(game.t(UiText.justWatch), style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w800)),
+                  child: Text(game.t(UiText.justWatch), style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w800)),
                 ),
             ],
           ),
@@ -160,7 +180,7 @@ class _ViewerBanner extends StatelessWidget {
                   width: 14,
                   decoration: BoxDecoration(
                     color: game.players[i].color,
-                    border: const BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
+                    border: BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -168,7 +188,7 @@ class _ViewerBanner extends StatelessWidget {
                 if (takenByOther)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(game.t(UiText.seatTaken), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                    child: Text(game.t(UiText.seatTaken), style: TextStyle(fontSize: 12, color: AppColors.muted)),
                   ),
                 if (mine) const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.check, size: 18)),
               ],
@@ -199,7 +219,7 @@ class _WaitingForHost extends StatelessWidget {
             Container(
               height: 180,
               padding: const EdgeInsets.all(10),
-              child: Image.asset('assets/images/logo.png'),
+              child: Image.asset(AppTheme.logo),
             ),
             const SizedBox(height: 28),
             Text(game.t(UiText.roomCode), style: pixelStyle(size: 13)),
@@ -210,7 +230,7 @@ class _WaitingForHost extends StatelessWidget {
               child: Text(game.roomCode ?? '', textDirection: TextDirection.ltr, style: rankStyle(size: 30)),
             ),
             const SizedBox(height: 24),
-            const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(color: AppColors.ink, strokeWidth: 3)),
+            SizedBox(width: 28, height: 28, child: CircularProgressIndicator(color: AppColors.ink, strokeWidth: 3)),
             const SizedBox(height: 14),
             Headline(game.t(connected ? UiText.waitingHost : UiText.connecting), size: 22, align: TextAlign.center),
           ],
@@ -279,7 +299,7 @@ class _TopBar extends StatelessWidget {
       context: context,
       backgroundColor: AppColors.bg,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         side: BorderSide(color: AppColors.ink, width: Brutal.border),
       ),
       builder: (context) => ListenableBuilder(
@@ -292,11 +312,11 @@ class _TopBar extends StatelessWidget {
               WindowBar(title: game.t(UiText.history), color: AppColors.teal),
               Expanded(
                 child: game.log.isEmpty
-                    ? Center(child: Text(game.t(UiText.noHistory), style: const TextStyle(color: AppColors.muted)))
+                    ? Center(child: Text(game.t(UiText.noHistory), style: TextStyle(color: AppColors.muted)))
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                         itemCount: game.log.length,
-                        separatorBuilder: (_, _) => const Divider(color: AppColors.line, height: 1),
+                        separatorBuilder: (_, _) => Divider(color: AppColors.line, height: 1),
                         itemBuilder: (context, i) => Padding(
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           child: Text(
@@ -343,7 +363,7 @@ Future<bool> confirmDialog(BuildContext context, GameController game, String tit
             const SizedBox(height: 12),
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text(game.t(UiText.no), style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink, fontSize: 16)),
+              child: Text(game.t(UiText.no), style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink, fontSize: 16)),
             ),
           ],
         ),
@@ -370,6 +390,23 @@ class _StatusChips extends StatelessWidget {
           onTap: game.skipCard,
           child: _chip('⏭ ${game.t(UiText.skipCard)}', AppColors.orange),
         ),
+      // الهوست: يكشف إجابة الكارت للكل (أو يخفيها تاني)
+      if (game.isHost && game.hasAnswer && game.currentCard != null)
+        GestureDetector(
+          onTap: game.toggleAnswer,
+          child: _chip(game.t(game.answerShown ? UiText.hideAnswer : UiText.showAnswer), AppColors.green),
+        ),
+      // الهوست: يعدّي دور لاعب من غير ما يسحب
+      if (game.canSkipPlayer)
+        GestureDetector(
+          onTap: game.skipPlayer,
+          child: _chip('⏭ ${game.t(UiText.skipPlayer)}', AppColors.paper),
+        ),
+      // الأدوار والأوقات (الكل يشوف، والهوست بس يتحكم)
+      GestureDetector(
+        onTap: () => showTurnsSheet(context, game),
+        child: _chip('⏱ ${game.t(UiText.turns)}', AppColors.blue),
+      ),
       if (game.caduActive)
         _chip(game.t(fillText(UiText.caduChip, {'n': game.caduCards.length})), AppColors.yellow),
       if (game.asideCards.isNotEmpty)
@@ -398,7 +435,7 @@ class _StatusChips extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: Brutal.box(color: color, borderWidth: 2, shadowOffset: const Offset(2, 2)),
-      child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.ink)),
+      child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.ink)),
     );
   }
 
@@ -440,7 +477,7 @@ class _StatusChips extends StatelessWidget {
                                 width: 12,
                                 decoration: BoxDecoration(
                                   color: game.players[i].color,
-                                  border: const BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
+                                  border: BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
                                 ),
                               ),
                               Expanded(
@@ -461,7 +498,7 @@ class _StatusChips extends StatelessWidget {
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text(game.t(UiText.cancel), style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
+                child: Text(game.t(UiText.cancel), style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
               ),
             ],
           ),
@@ -705,6 +742,14 @@ class _TableState extends State<_Table> {
         isSilent: index == game.silentIndex && game.showSilenceMarker,
         clickable: game.canPickLoser,
         isMe: game.isViewer && game.myPlayerIndex == index,
+        // ساعة الدور: بتعد لفوق من أول ما صاحب الدور يسحب
+        clock: game.activeTurn?.player == index
+            ? StopwatchText(
+                turn: game.activeTurn!,
+                now: () => game.nowMs,
+                style: rankStyle(size: 11, color: game.activeTurn!.isPaused ? AppColors.muted : AppColors.ink),
+              )
+            : null,
         vertical: vertical,
         turnLabel: game.t(UiText.yourTurn),
         // الهوست: وقت الاختيار الدوسة بتختار الخسران، وغير كده بتفتح تصحيح الكروت
@@ -725,7 +770,7 @@ class _TableState extends State<_Table> {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bg,
-      shape: const RoundedRectangleBorder(side: BorderSide(color: AppColors.ink, width: Brutal.border)),
+      shape: RoundedRectangleBorder(side: BorderSide(color: AppColors.ink, width: Brutal.border)),
       builder: (sheetContext) => ListenableBuilder(
         listenable: game,
         builder: (sheetContext, _) {
@@ -744,7 +789,7 @@ class _TableState extends State<_Table> {
                 if (player.cards.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Text(game.t(UiText.noCards), textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
+                    child: Text(game.t(UiText.noCards), textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted)),
                   )
                 else
                   Padding(
@@ -757,8 +802,8 @@ class _TableState extends State<_Table> {
                           InputChip(
                             label: Text(player.cards[i].label, style: pixelStyle(size: 15)),
                             backgroundColor: AppColors.paper,
-                            side: const BorderSide(color: AppColors.ink, width: 2),
-                            deleteIcon: const Icon(Icons.close, size: 18, color: AppColors.red),
+                            side: BorderSide(color: AppColors.ink, width: 2),
+                            deleteIcon: Icon(Icons.close, size: 18, color: AppColors.red),
                             onDeleted: () async {
                               final label = player.cards[i].label;
                               final yes = await confirmDialog(

@@ -72,6 +72,19 @@ class BigCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                // الإجابة: بتظهر للكل لما الهوست يكشفها (بحركة ناعمة)
+                if (card != null && game.answerShown && game.currentRule?.answer != null)
+                  Positioned(
+                    top: w * 0.14,
+                    left: w * 0.22,
+                    right: w * 0.22 + shadow,
+                    child: _AnswerBanner(
+                      key: ValueKey('answer-${card.label}'),
+                      w: w,
+                      label: game.t(UiText.answer),
+                      text: game.t(game.currentRule!.answer!),
+                    ),
+                  ),
                 // عداد مؤقت السؤال (فوق الكارت، بيتحدث لوحده من غير ما يعيد رسم الكارت)
                 if (card != null && game.questionEndsAt != null && game.phase == CardPhase.front)
                   Positioned(
@@ -240,6 +253,7 @@ class _CardFront extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (game.timedOut) _timeUp(w),
+          if (game.clapActive && game.clapTaps.isNotEmpty) ...[_clapResult(w), SizedBox(height: w * 0.05)],
           StickerImage(Sticker.magnifier, size: w * 0.24),
           SizedBox(height: w * 0.04),
           Text(game.t(UiText.hostPicking), textAlign: TextAlign.center, style: pixelStyle(size: w * 0.07)),
@@ -272,6 +286,24 @@ class _CardFront extends StatelessWidget {
         child: Column(
           children: [
             if (game.timedOut) _timeUp(w),
+            // نتيجة التصفيق من الموبايلات: أول وآخر واحد + زرار سريع للأخير
+            if (game.clapActive && game.clapTaps.isNotEmpty) ...[
+              _clapResult(w),
+              SizedBox(height: w * 0.025),
+              if (game.clapLast != null)
+                SizedBox(
+                  width: fullWidth,
+                  child: BrutalButton(
+                    label: game.t(fillText(UiText.clapGiveLast, {'name': game.players[game.clapLast!].name})),
+                    onTap: () => game.pickLoser(game.clapLast!),
+                    color: AppColors.red,
+                    showArrow: false,
+                    height: w * 0.12,
+                    fontSize: w * 0.042,
+                  ),
+                ),
+              SizedBox(height: w * 0.03),
+            ],
             Headline(game.t(prompt), size: w * 0.07, align: TextAlign.center),
             // تحذير الكادو
             if (game.caduActive) _warning(w, game.t(fillText(UiText.caduWarn, {'n': game.caduCards.length}))),
@@ -300,6 +332,15 @@ class _CardFront extends StatelessWidget {
                   height: w * 0.13,
                   fontSize: w * 0.048,
                 ),
+              ),
+            ],
+            // الهوست قفل التصفيق بدري؟ يفتحه تاني (الضغطات اللي اتسجلت بتفضل)
+            if (game.clapActive && game.room != null) ...[
+              SizedBox(height: w * 0.03),
+              TextButton(
+                onPressed: game.reopenClap,
+                child: Text('👏 ${game.t(UiText.clapOpenAgain)}',
+                    style: TextStyle(fontSize: w * 0.04, fontWeight: FontWeight.w900, color: AppColors.ink)),
               ),
             ],
             // زرار "مش عارفين؟ حطّه على جنب" (في التصفيق)
@@ -352,7 +393,7 @@ class _CardFront extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: player.color,
-                border: const BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
+                border: BorderDirectional(end: BorderSide(color: AppColors.ink, width: 2)),
               ),
               child: Text(initial, style: pixelStyle(size: w * 0.045)),
             ),
@@ -376,7 +417,7 @@ class _CardFront extends StatelessWidget {
 
   /// رسالة كبيرة في نص الكارت (للقنبلة)
   Widget _bigMessage(double w,
-      {required Widget hero, required String title, String? subtitle, String? hint, Color titleColor = AppColors.ink}) {
+      {required Widget hero, required String title, String? subtitle, String? hint, Color? titleColor}) {
     return Column(
       children: [
         Expanded(
@@ -410,41 +451,64 @@ class _CardFront extends StatelessWidget {
     );
   }
 
-  /// زرار التصفيق الضخم: بيظهر أول ما الكارت يتقلب (الكارت كله بيستقبل الضغطة)
+  /// زرار التصفيق: بيظهر أول ما الكارت يتقلب (الكارت كله بيستقبل الضغطة).
+  /// شكله ومكانه من إعدادات الكارت في محرر الكروت.
+  /// - موبايل اللاعب: الضغطة بتسجل تصفيقه عند الهوست (مرة واحدة)
+  /// - الهوست: الضغطة بتقفل التصفيق وتروح لاختيار الخسران
   Widget _clapButton(double w) {
+    final view = ClapButtonView(
+      w: w,
+      style: rule.clapStyle,
+      defaultText: game.t(UiText.clapNow),
+      translate: game.t,
+      enabled: game.isHost || game.canClap,
+      overrideText: game.isViewer && game.iClapped ? game.t(UiText.clapTapped) : null,
+    );
+    final String hint;
+    if (game.isViewer) {
+      hint = game.myPlayerIndex == null ? game.t(UiText.pickYourSeatShort) : game.t(UiText.lastClapLoses);
+    } else {
+      hint = game.room != null ? game.t(UiText.clapCloseHint) : game.t(UiText.lastClapLoses);
+    }
     return Column(
       children: [
-        Expanded(
-          child: Center(
-            child: Pulse(
-              scale: 1.06,
-              duration: const Duration(milliseconds: 300),
-              child: Container(
-                width: w * 0.64,
-                height: w * 0.64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.yellow,
-                  border: Border.all(color: AppColors.ink, width: 3),
-                  boxShadow: Brutal.hardShadow(offset: const Offset(6, 6)),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('👏', style: TextStyle(fontSize: w * 0.18)),
-                    Text(game.t(UiText.clapNow), style: pixelStyle(size: w * 0.09)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: Align(alignment: view.alignment, child: view)),
+        if (game.clapTaps.isNotEmpty) ...[_clapResult(w), SizedBox(height: w * 0.02)],
         Text(
-          game.t(UiText.lastClapLoses),
+          hint,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: w * 0.045, fontWeight: FontWeight.w800, color: AppColors.ink),
         ),
       ],
+    );
+  }
+
+  /// ترتيب التصفيق: "فلان صقّف الأول!" + الترتيب كله، و"فلان صقّف الأخير!" بعد ما الهوست يقفل
+  Widget _clapResult(double w) {
+    final first = game.clapFirst;
+    final last = game.clapLast;
+    final names = [
+      for (var i = 0; i < game.clapTaps.length; i++)
+        if (game.clapTaps[i].player < game.players.length) '${i + 1}. ${game.players[game.clapTaps[i].player].name}',
+    ];
+    final style = TextStyle(fontSize: w * 0.043, fontWeight: FontWeight.w900, color: AppColors.ink);
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: w * 0.03, vertical: w * 0.015),
+      decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(2, 2)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (first != null && first < game.players.length)
+            Text('🥇 ${game.t(fillText(UiText.clapFirst, {'name': game.players[first].name}))}', textAlign: TextAlign.center, style: style),
+          if (last != null && last < game.players.length)
+            Text('🐢 ${game.t(fillText(UiText.clapLast, {'name': game.players[last].name}))}',
+                textAlign: TextAlign.center, style: style.copyWith(color: AppColors.red)),
+          Text(names.join('   '),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: w * 0.034, fontWeight: FontWeight.w700, color: AppColors.muted)),
+        ],
+      ),
     );
   }
 }
@@ -547,6 +611,39 @@ class _BombWarningState extends State<BombWarning> {
           color: _final ? AppColors.red.withValues(alpha: 0.35) : Colors.transparent,
         ),
         child: widget.child,
+      ),
+    );
+  }
+}
+
+// =================================================================
+// الإجابة بعد ما الهوست يكشفها (بتظهر بحركة ناعمة فوق الكارت)
+// =================================================================
+class _AnswerBanner extends StatelessWidget {
+  final double w;
+  final String label;
+  final String text;
+  const _AnswerBanner({super.key, required this.w, required this.label, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: MediaQuery.of(context).disableAnimations ? 0 : 280),
+      curve: Curves.easeOutBack,
+      builder: (context, t, child) => Opacity(opacity: t.clamp(0, 1), child: Transform.scale(scale: 0.8 + 0.2 * t, child: child)),
+      child: IgnorePointer(
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: w * 0.03, vertical: w * 0.015),
+          decoration: Brutal.box(color: AppColors.green, borderWidth: 2.4, shadowOffset: const Offset(3, 3)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('👁 $label', style: TextStyle(fontSize: w * 0.032, fontWeight: FontWeight.w800, color: AppColors.ink)),
+              Text(text, textAlign: TextAlign.center, style: pixelStyle(size: w * 0.05)),
+            ],
+          ),
+        ),
       ),
     );
   }

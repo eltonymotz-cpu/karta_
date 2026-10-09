@@ -106,11 +106,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   if (error != null) ...[
                     const SizedBox(height: 10),
-                    Text(error!, style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w800, fontSize: 13)),
+                    Text(error!, style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w800, fontSize: 13)),
                   ],
                   const SizedBox(height: 16),
                   loading
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.ink))
+                      ? Center(child: CircularProgressIndicator(color: AppColors.ink))
                       : BrutalButton(label: game.t(UiText.login), onTap: submit),
                 ],
               ),
@@ -221,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Container(
                             height: 200,
                             padding: const EdgeInsets.all(10),
-                            child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+                            child: Image.asset(AppTheme.logo, fit: BoxFit.contain),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -293,7 +293,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(4)),
-              child: const Icon(Icons.arrow_forward_rounded, color: AppColors.paper, size: 22),
+              child: Icon(Icons.arrow_forward_rounded, color: AppColors.paper, size: 22),
             ),
           ],
         ),
@@ -365,17 +365,17 @@ class _BoxField extends StatelessWidget {
           : const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 4),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.muted, fontSize: 15, letterSpacing: 0),
+        hintStyle: TextStyle(color: AppColors.muted, fontSize: 15, letterSpacing: 0),
         filled: true,
         fillColor: AppColors.paper,
         contentPadding: const EdgeInsets.symmetric(vertical: 14),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Brutal.radius),
-          borderSide: const BorderSide(color: AppColors.ink, width: 2),
+          borderSide: BorderSide(color: AppColors.ink, width: 2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Brutal.radius),
-          borderSide: const BorderSide(color: AppColors.ink, width: 3),
+          borderSide: BorderSide(color: AppColors.ink, width: 3),
         ),
       ),
     );

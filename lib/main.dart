@@ -46,8 +46,8 @@ Future<void> main() async {
     }
   }
 
-  // تحميل الأنماط اللي الأدمن ضافها
-  await ModeStore.load();
+  // تحميل الأنماط اللي الأدمن ضافها + الوضع الغامق/الفاتح المحفوظ
+  await Future.wait([ModeStore.load(), AppTheme.load()]);
 
   // تحميل الأصوات في الخلفية (من غير ما نأخر فتح التطبيق)
   SoundService.instance.preload();
@@ -55,16 +55,21 @@ Future<void> main() async {
   runApp(const KartaApp());
 }
 
-/// الثيم بيتعمل مرة واحدة بس (بدل ما يتحسب من الأول مع كل تغيير في اللعبة)
-final ThemeData _theme = ThemeData(
-  brightness: Brightness.light,
+/// الثيم بيتعمل مرة واحدة لكل وضع (فاتح/غامق) وبيتخزن (بدل ما يتحسب مع كل تغيير في اللعبة)
+final Map<bool, ThemeData> _themes = {};
+ThemeData _themeFor(bool dark) => _themes[dark] ??= _buildTheme(dark);
+
+ThemeData _buildTheme(bool dark) => ThemeData(
+  brightness: dark ? Brightness.dark : Brightness.light,
   scaffoldBackgroundColor: AppColors.bg,
-  colorScheme: const ColorScheme.light(
-    primary: AppColors.ink,
-    secondary: AppColors.yellow,
-    surface: AppColors.paper,
-  ),
-  textSelectionTheme: const TextSelectionThemeData(cursorColor: AppColors.ink),
+  colorScheme: dark
+      ? ColorScheme.dark(primary: AppColors.ink, secondary: AppColors.yellow, surface: AppColors.paper, onSurface: AppColors.ink)
+      : ColorScheme.light(primary: AppColors.ink, secondary: AppColors.yellow, surface: AppColors.paper),
+  dialogTheme: DialogThemeData(backgroundColor: AppColors.paper),
+  bottomSheetTheme: BottomSheetThemeData(backgroundColor: AppColors.bg),
+  popupMenuTheme: PopupMenuThemeData(color: AppColors.paper),
+  inputDecorationTheme: InputDecorationTheme(hintStyle: TextStyle(color: AppColors.muted)),
+  textSelectionTheme: TextSelectionThemeData(cursorColor: AppColors.ink),
   // انتقالات ناعمة بين الصفحات (زي صفحة تعديل النمط في الأدمن)
   pageTransitionsTheme: const PageTransitionsTheme(
     builders: {
@@ -75,7 +80,7 @@ final ThemeData _theme = ThemeData(
     },
   ),
   // خط Baloo Bhaijaan 2: مدوّر ومرح وبيدعم العربي والإنجليزي
-  textTheme: GoogleFonts.balooBhaijaan2TextTheme(ThemeData.light().textTheme).apply(
+  textTheme: GoogleFonts.balooBhaijaan2TextTheme((dark ? ThemeData.dark() : ThemeData.light()).textTheme).apply(
     bodyColor: AppColors.ink,
     displayColor: AppColors.ink,
   ),
@@ -95,6 +100,7 @@ class _KartaAppState extends State<KartaApp> {
   @override
   void initState() {
     super.initState();
+    AppTheme.dark.addListener(_themeChanged);
     // لو التطبيق اتفتح من رابط الـ QR (فيه ?room=CODE) ندخل القعدة على طول كمتفرج
     final code = kIsWeb ? Uri.base.queryParameters['room'] : null;
     if (code != null && code.isNotEmpty && AppConfig.hasSupabase) game.joinRoom(code);
@@ -111,14 +117,27 @@ class _KartaAppState extends State<KartaApp> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // نحمّل صورة اللوجو والستيكرز من الأول، عشان الكروت تظهر من غير تأخير
-    precacheImage(const AssetImage('assets/images/logo.png'), context);
+    precacheImage(AssetImage(AppTheme.logo), context);
     for (final sticker in Sticker.values) {
       precacheImage(AssetImage(sticker.path), context);
     }
   }
 
+  /// الوضع الغامق/الفاتح اتغير: نعيد رسم كل الشاشات بالألوان الجديدة
+  /// (من غير ما نفقد أي حالة: الأسامي اللي اتكتبت، الكارت الحالي، تعديلات الأدمن...)
+  void _themeChanged() {
+    precacheImage(AssetImage(AppTheme.logo), context);
+    setState(() {});
+    void rebuild(Element element) {
+      element.markNeedsBuild();
+      element.visitChildren(rebuild);
+    }
+    (context as Element).visitChildren(rebuild);
+  }
+
   @override
   void dispose() {
+    AppTheme.dark.removeListener(_themeChanged);
     game.dispose();
     super.dispose();
   }
@@ -129,7 +148,8 @@ class _KartaAppState extends State<KartaApp> {
     return MaterialApp(
       title: 'Karta - كارتة',
       debugShowCheckedModeBanner: false,
-      theme: _theme,
+      theme: _themeFor(AppColors.dark),
+      themeAnimationDuration: Duration.zero, // التبديل فوري
       // اتجاه الكتابة حسب اللغة: العربي يمين، والفرانكو شمال
       builder: (context, child) => ListenableBuilder(
         listenable: game,

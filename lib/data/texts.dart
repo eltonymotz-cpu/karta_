@@ -343,4 +343,92 @@ class UiText {
   static const noCards = LText('مفيش كروت لسه', 'Mafeesh kroot lessa');
   static const removeCardConfirm = LText('تشيل {card} من {name}؟', 'Teshil {card} men {name}?');
   static const removeCard = LText('شيله', 'Sheelo');
+
+  // ---------- ساعة كل لاعب (الأدوار) ----------
+  static const turns = LText('الأدوار والوقت', 'El adwar wel wa2t');
+  static const turnActive = LText('دوره شغال', 'Doro shaghal');
+  static const turnWaiting = LText('مستني', 'Mestanni');
+  static const turnAnswered = LText('جاوب', 'Gaweb');
+  static const turnNoAnswer = LText('ماجاوبش', 'Magawebsh');
+  static const turnFinished = LText('الدور خلص', 'El dor khelis');
+  static const turnSkipped = LText('اتعدّى', 'Et3adda');
+  static const turnPaused = LText('واقف مؤقتاً', 'Wa2ef mo2aqatan');
+  static const pause = LText('إيقاف مؤقت', 'Wa2af');
+  static const resume = LText('كمّل', 'Kammel');
+  static const endTurn = LText('إنهاء الدور', 'Enha2 el dor');
+  static const markAnswered = LText('✔ جاوب', '✔ Gaweb');
+  static const markNoAnswer = LText('✕ ماجاوبش', '✕ Magawebsh');
+  static const skipPlayer = LText('عدّي الدور', '3addy el dor');
+  static const totalTime = LText('الوقت الكلي', 'El wa2t el kolly');
+  static const noTurns = LText('لسه محدش لعب', 'Lessa ma7adesh le3eb');
+  static const turnsHint = LText(
+    'كل لاعب ليه ساعة لوحده: بتبدأ لما يسحب الكارت وبتقف لما دوره يخلص، ووقته بيتسجل.',
+    'Kol la3eb leeh sa3a lewa7do: btebda2 lama yes7ab el kart w bto2af lama doro ykhallas, w wa2to byetsaggel.',
+  );
+  static const logPlayerSkipped = LText('⏭ الهوست عدّى دور {name}', '⏭ El host 3adda dor {name}');
+  static const logTurnEnded = LText('⏱ دور {name} خلص ({time})', '⏱ Dor {name} khelis ({time})');
+  static const logTurnStatus = LText('📝 دور {name}: {status}', '📝 Dor {name}: {status}');
+
+  // ---------- زرار التصفيق (التسقيف) ----------
+  static const clapTap = LText('صقّف!', 'Sa22af!');
+  static const clapTapped = LText('✔ صقّفت!', '✔ Sa22aft!');
+  static const clapClosed = LText('التصفيق خلص', 'El tasfee2 khelis');
+  static const clapWaitOpen = LText('استنى الهوست يفتح التصفيق', 'Estanna el host yefta7 el tasfee2');
+  static const clapFirst = LText('{name} صقّف الأول!', '{name} sa22af el awel!');
+  static const clapLast = LText('{name} صقّف الأخير!', '{name} sa22af el akher!');
+  static const clapOrder = LText('ترتيب التصفيق', 'Tarteeb el tasfee2');
+  static const clapNone = LText('محدش صقّف من موبايله لسه', 'Ma7adesh sa22af men mobilo lessa');
+  static const clapCloseHint = LText('👆 دوس على الكارت لما الكل يصقّف', '👆 Dos 3al kart lama el kol ysa22af');
+  static const clapOpenAgain = LText('افتح التصفيق تاني', 'Efta7 el tasfee2 tany');
+  static const clapGiveLast = LText('اديه لـ {name} (الأخير)', 'Eddih le {name} (el akher)');
+  static const logClapResult = LText('👏 أول واحد: {first} • آخر واحد: {last}', '👏 Awel wa7ed: {first} • Akher wa7ed: {last}');
+
+  // ---------- الإجابة ----------
+  static const showAnswer = LText('👁 اكشف الإجابة', '👁 Ekshef el egaba');
+  static const hideAnswer = LText('اخفي الإجابة', 'Ekhfy el egaba');
+  static const answer = LText('الإجابة', 'El egaba');
+  static const answerHidden = LText('الإجابة مخفية', 'El egaba makhfeya');
+  static const logAnswerShown = LText('👁 الهوست كشف الإجابة: {answer}', '👁 El host kashaf el egaba: {answer}');
+
+  // ---------- الترتيب ----------
+  static const liveRanking = LText('الترتيب لايف', 'LIVE RANKING');
+  static const rankingHint = LText('الأقل كروت هو الأول', 'El a2al kroot howa el awel');
+  static const cardsShort = LText('{n} كارت', '{n} kart');
+
+  // ---------- محرر زرار التصفيق والإجابة ----------
+  static const clapButton = LText('👏 زرار التصفيق (التسقيف)', '👏 Zorar el tasfee2');
+  static const clapButtonHint = LText(
+    'لما الكارت يتقلب بيظهر زرار، وكل لاعب يدوس عليه من موبايله. اللعبة بتسجل مين صقّف الأول ومين الأخير، والهوست بيقفل التصفيق.',
+    'Lama el kart yet2eleb byezhar zorar, w kol la3eb ydoos 3aleh men mobilo. El le3ba btsaggel meen sa22af el awel w meen el akher, wel host bye2fel el tasfee2.',
+  );
+  static const clapNotAllowed = LText('متاح بس للكروت اللي بتنتهي باختيار خسران (تصفيق / اختيار / يدّيه لحد)', 'Meta7 bas lel kroot elly btentehy b ekhtyar khasran');
+  static const clapDesign = LText('شكل زرار التصفيق', 'Shakl zorar el tasfee2');
+  static const clapTextAr = LText('كلام الزرار (عربي)', 'Kalam el zorar (3araby)');
+  static const clapTextFr = LText('كلام الزرار (فرانكو)', 'Kalam el zorar (Franco)');
+  static const clapIcon = LText('إيموجي الزرار', 'Emoji el zorar');
+  static const clapBg = LText('لون الزرار', 'Lon el zorar');
+  static const clapFg = LText('لون الكلام', 'Lon el kalam');
+  static const clapSize = LText('الحجم', 'El 7agm');
+  static const sizeS = LText('صغير', 'Soghayar');
+  static const sizeM = LText('وسط', 'Wasat');
+  static const sizeL = LText('كبير', 'Kebeer');
+  static const clapShape = LText('الشكل', 'El shakl');
+  static const shapeCircle = LText('دايرة', 'Dayra');
+  static const shapeRounded = LText('مدوّر', 'Medawwar');
+  static const shapePill = LText('كبسولة', 'Kabsoola');
+  static const shapeSquare = LText('مربع', 'Morabba3');
+  static const clapRadius = LText('استدارة الزوايا', 'Estedaret el zawaya');
+  static const clapPosition = LText('مكانه في الكارت', 'Makano fel kart');
+  static const posTop = LText('فوق', 'Fo2');
+  static const posCenter = LText('النص', 'El nos');
+  static const posBottom = LText('تحت', 'Ta7t');
+  static const clapBorder = LText('حدود وظل', '7odood w dell');
+  static const clapAnimate = LText('نبض خفيف', 'Nabd khafeef');
+  static const previewClap = LText('👏 الزرار', '👏 El zorar');
+  static const answerAr = LText('الإجابة (عربي) - اختياري', 'El egaba (3araby) - ekhtyary');
+  static const answerFr = LText('الإجابة (فرانكو) - اختياري', 'El egaba (Franco) - ekhtyary');
+  static const answerHint = LText(
+    'الإجابة بتفضل مخفية في اللعب لحد ما الهوست يدوس "اكشف الإجابة"، وبعدها بتظهر لكل اللاعيبة.',
+    'El egaba betfdal makhfeya fel le3b le7ad ma el host ydoos "ekshef el egaba", w ba3daha btezhar le kol el la3eeba.',
+  );
 }

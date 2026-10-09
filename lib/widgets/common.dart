@@ -23,7 +23,8 @@ class PixelFont {
 /// خط العناوين والزراير:
 /// - في الفرانكو: خط البيكسل (Silkscreen - أرقامه واضحة)
 /// - في العربي: خط Baloo المدوّر، لأن مفيش خط بيكسل عربي
-TextStyle pixelStyle({double size = 16, Color color = AppColors.ink, FontWeight weight = FontWeight.w700}) {
+TextStyle pixelStyle({double size = 16, Color? color, FontWeight weight = FontWeight.w700}) {
+  color ??= AppColors.ink;
   if (PixelFont.arabic) {
     return GoogleFonts.balooBhaijaan2(fontSize: size, color: color, fontWeight: FontWeight.w800, height: 1.15);
   }
@@ -37,7 +38,8 @@ TextStyle pixelStyle({double size = 16, Color color = AppColors.ink, FontWeight 
 
 /// خط البيكسل دايماً (لقيمة الكارت والأرقام لوحدها) - الـ Text بيبقى
 /// textDirection: TextDirection.ltr عشان الترتيب يفضل صح جوه الكلام العربي
-TextStyle rankStyle({double size = 16, Color color = AppColors.ink}) {
+TextStyle rankStyle({double size = 16, Color? color}) {
+  color ??= AppColors.ink;
   return GoogleFonts.silkscreen(fontSize: size * 0.9, color: color, fontWeight: FontWeight.w700, height: 1.15);
 }
 
@@ -56,7 +58,7 @@ class AppBackground extends StatelessWidget {
       color: AppColors.bg,
       child: Stack(
         children: [
-          const Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _GridPainter()))),
+          Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _GridPainter()))),
           const Positioned(top: 96, right: 8, child: Opacity(opacity: 0.8, child: StickerImage(Sticker.sparkle, size: 26))),
           const Positioned(bottom: 110, left: 6, child: Opacity(opacity: 0.8, child: StickerImage(Sticker.heart, size: 26))),
           Positioned.fill(child: child),
@@ -68,7 +70,7 @@ class AppBackground extends StatelessWidget {
 
 /// مربعات الخلفية
 class _GridPainter extends CustomPainter {
-  const _GridPainter();
+  final bool dark = AppColors.dark; // بيترسم من جديد لما الوضع الغامق يتغير
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -85,7 +87,7 @@ class _GridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => (oldDelegate as _GridPainter).dark != dark;
 }
 
 // =================================================================
@@ -139,8 +141,8 @@ class ShapesStrip extends StatelessWidget {
 class ModeIcon extends StatelessWidget {
   final GameMode mode;
   final double size;
-  final Color color;
-  const ModeIcon({super.key, required this.mode, this.size = 48, this.color = AppColors.yellow});
+  final Color? color;
+  const ModeIcon({super.key, required this.mode, this.size = 48, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +152,7 @@ class ModeIcon extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       clipBehavior: Clip.antiAlias,
-      decoration: Brutal.box(color: color, borderWidth: 2, shadowOffset: Offset.zero),
+      decoration: Brutal.box(color: color ?? AppColors.yellow, borderWidth: 2, shadowOffset: Offset.zero),
       // الصورة يا رابط (Supabase Storage) يا base64 (الصور القديمة)
       child: image == null
           ? Text(mode.emoji, style: TextStyle(fontSize: size * 0.5))
@@ -182,6 +184,7 @@ class DotGrid extends StatelessWidget {
 class _DotPainter extends CustomPainter {
   final int columns, rows;
   final double gap;
+  final bool dark = AppColors.dark;
   _DotPainter(this.columns, this.rows, this.gap);
 
   @override
@@ -196,7 +199,7 @@ class _DotPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => (oldDelegate as _DotPainter).dark != dark;
 }
 
 // =================================================================
@@ -207,12 +210,12 @@ class _DotPainter extends CustomPainter {
 class BrutalBox extends StatelessWidget {
   final Widget child;
   final EdgeInsets padding;
-  final Color color;
+  final Color? color;
   const BrutalBox({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
-    this.color = AppColors.paper,
+    this.color,
   });
 
   @override
@@ -224,17 +227,17 @@ class BrutalBox extends StatelessWidget {
 /// شباك كمبيوتر قديم: شريط عنوان ملون فيه اسم + أزرار _ □ ✕، وتحته المحتوى
 class RetroWindow extends StatelessWidget {
   final String title;
-  final Color barColor;
+  final Color? barColor;
   final Widget child;
   final EdgeInsets padding;
-  final Color color;
+  final Color? color;
   const RetroWindow({
     super.key,
     required this.title,
     required this.child,
-    this.barColor = AppColors.teal,
+    this.barColor,
     this.padding = const EdgeInsets.all(14),
-    this.color = AppColors.paper,
+    this.color,
   });
 
   @override
@@ -256,9 +259,9 @@ class RetroWindow extends StatelessWidget {
 /// شريط عنوان الشباك لوحده
 class WindowBar extends StatelessWidget {
   final String title;
-  final Color color;
+  final Color? color;
   final double height;
-  const WindowBar({super.key, required this.title, this.color = AppColors.teal, this.height = 30});
+  const WindowBar({super.key, required this.title, this.color, this.height = 30});
 
   @override
   Widget build(BuildContext context) {
@@ -267,8 +270,8 @@ class WindowBar extends StatelessWidget {
       height: height,
       padding: EdgeInsets.symmetric(horizontal: height * 0.3),
       decoration: BoxDecoration(
-        color: color,
-        border: const Border(bottom: BorderSide(color: AppColors.ink, width: Brutal.border)),
+        color: color ?? AppColors.teal,
+        border: Border(bottom: BorderSide(color: AppColors.ink, width: Brutal.border)),
       ),
       child: Row(
         children: [
@@ -310,7 +313,7 @@ class WindowBar extends StatelessWidget {
 class BrutalButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
-  final Color color;
+  final Color? color;
   final bool showArrow;
   final double height;
   final double fontSize;
@@ -318,7 +321,7 @@ class BrutalButton extends StatelessWidget {
     super.key,
     required this.label,
     required this.onTap,
-    this.color = AppColors.yellow,
+    this.color,
     this.showArrow = true,
     this.height = 58,
     this.fontSize = 18,
@@ -334,7 +337,7 @@ class BrutalButton extends StatelessWidget {
         // لما تدوس الزرار بينزل مكان الظل كأنه اتضغط فعلاً
         transform: Matrix4.translationValues(pressed ? 3 : 0, pressed ? 3 : 0, 0),
         padding: EdgeInsets.all(height * 0.1),
-        decoration: Brutal.box(color: color, shadowOffset: pressed ? const Offset(1, 1) : Brutal.shadow),
+        decoration: Brutal.box(color: color ?? AppColors.yellow, shadowOffset: pressed ? const Offset(1, 1) : Brutal.shadow),
         child: Row(
           children: [
             if (showArrow) SizedBox(width: height * 0.8),
@@ -361,8 +364,8 @@ class BrutalButton extends StatelessWidget {
 class SquareButton extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
-  final Color color;
-  const SquareButton({super.key, required this.child, this.onTap, this.color = AppColors.paper});
+  final Color? color;
+  const SquareButton({super.key, required this.child, this.onTap, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -378,7 +381,7 @@ class SquareButton extends StatelessWidget {
         decoration: Brutal.box(color: color, borderWidth: 2, shadowOffset: pressed ? Offset.zero : const Offset(2, 2)),
         child: DefaultTextStyle.merge(
           style: pixelStyle(size: 14),
-          child: IconTheme.merge(data: const IconThemeData(color: AppColors.ink, size: 20), child: child),
+          child: IconTheme.merge(data: IconThemeData(color: AppColors.ink, size: 20), child: child),
         ),
       ),
     );
@@ -388,7 +391,8 @@ class SquareButton extends StatelessWidget {
 /// مفتاح تبديل اللغة: عربي | Franco
 class LangToggle extends StatelessWidget {
   final GameController game;
-  const LangToggle({super.key, required this.game});
+  final bool compact; // نسخة أصغر للشريط العلوي في شاشة اللعب
+  const LangToggle({super.key, required this.game, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -404,7 +408,7 @@ class LangToggle extends StatelessWidget {
       );
     }
 
-    return GestureDetector(
+    final lang = GestureDetector(
       onTap: game.toggleLang,
       child: Container(
         clipBehavior: Clip.antiAlias,
@@ -415,8 +419,54 @@ class LangToggle extends StatelessWidget {
           children: [
             segment('عربي', AppLang.ar),
             Container(width: 2, height: 34, color: AppColors.ink),
-            segment('Franco', AppLang.franco),
+            segment(compact ? 'FR' : 'Franco', AppLang.franco),
           ],
+        ),
+      ),
+    );
+    // زرار الوضع الغامق جنب اللغة على طول
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      textDirection: TextDirection.ltr,
+      children: [lang, SizedBox(width: compact ? 5 : 8), const ThemeToggle()],
+    );
+  }
+}
+
+/// زرار الشمس/القمر: بيبدّل بين الوضع الفاتح والغامق (وبيتحفظ على الجهاز)
+class ThemeToggle extends StatelessWidget {
+  const ThemeToggle({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = AppColors.dark;
+    return Semantics(
+      button: true,
+      label: dark ? 'Light mode' : 'Dark mode',
+      child: GestureDetector(
+        onTap: AppTheme.toggle,
+        child: Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: Brutal.box(
+            color: dark ? AppColors.yellow : AppColors.ink,
+            borderWidth: 2,
+            shadowOffset: const Offset(2, 2),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            transitionBuilder: (child, animation) => RotationTransition(
+              turns: Tween(begin: 0.6, end: 1.0).animate(animation),
+              child: FadeTransition(opacity: animation, child: child),
+            ),
+            child: Icon(
+              dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              key: ValueKey(dark),
+              size: 20,
+              color: dark ? const Color(0xFFFFD45C) : AppColors.paper,
+            ),
+          ),
         ),
       ),
     );

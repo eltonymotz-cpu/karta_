@@ -21,6 +21,7 @@ class PlayerSeat extends StatelessWidget {
   final bool vertical;     // لما المساحة ضيقة المقعد بيبقى رأسي
   final String turnLabel;  // كلمة "دورك" باللغة الحالية
   final VoidCallback onTap;
+  final Widget? clock;     // ساعة الدور (بتظهر لصاحب الدور بس)
 
   const PlayerSeat({
     super.key,
@@ -33,6 +34,7 @@ class PlayerSeat extends StatelessWidget {
     required this.onTap,
     this.tappable = false,
     this.isMe = false,
+    this.clock,
   });
 
   @override
@@ -49,7 +51,7 @@ class PlayerSeat extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: AppColors.ink, width: 2),
       ),
-      child: Text(initial, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.ink)),
+      child: Text(initial, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.ink)),
     );
 
     final name = Text(
@@ -57,7 +59,7 @@ class PlayerSeat extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       textAlign: TextAlign.center,
-      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.ink, height: 1.2),
+      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.ink, height: 1.2),
     );
 
     // شارة عدد الكروت: زي شارة "15 Stars" في التصميم
@@ -75,15 +77,19 @@ class PlayerSeat extends StatelessWidget {
         children: [
           const Text('🃏', style: TextStyle(fontSize: 10)),
           const SizedBox(width: 3),
-          Text('$count', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.ink)),
+          Text('$count', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.ink)),
         ],
       ),
     );
 
-    final turnTag = Text(
+    final label = Text(
       turnLabel,
-      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.red, height: 1.1),
+      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.red, height: 1.1),
     );
+    // "دورك" + ساعة الدور جنبها
+    final turnTag = clock == null
+        ? label
+        : Row(mainAxisSize: MainAxisSize.min, children: [label, const SizedBox(width: 4), clock!]);
 
     // ترتيب المحتوى: رأسي لما المساحة ضيقة، أفقي لما فيه مساحة
     final content = vertical
@@ -145,7 +151,7 @@ class PlayerSeat extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: Brutal.box(color: AppColors.green, borderWidth: 1.6, shadowOffset: Offset.zero),
-                  child: const Icon(Icons.person, size: 12, color: AppColors.ink),
+                  child: Icon(Icons.person, size: 12, color: AppColors.ink),
                 ),
               ),
           ],

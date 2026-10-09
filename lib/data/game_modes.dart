@@ -106,6 +106,101 @@ class CardDesign {
   }
 }
 
+/// شكل زرار التصفيق (التسقيف) اللي بيظهر على الكارت. الأدمن بيغيّره من محرر الكروت.
+/// كل الخانات ليها قيمة افتراضية بتطابق شكل اللعبة.
+class ClapButtonStyle {
+  final LText? text;      // كلام الزرار (null = "صقّف!")
+  final String icon;      // الإيموجي اللي فوق الكلام
+  final int? bg;          // لون الزرار (null = اللون الأساسي للتطبيق)
+  final int? fg;          // لون الكلام (null = لون النص العادي)
+  final String size;      // s / m / l
+  final String shape;     // circle / rounded / pill / square
+  final double radius;    // استدارة الزوايا (للشكل rounded)
+  final String position;  // center / top / bottom (مكانه جوه الكارت)
+  final bool border;      // حدود غامقة وظل صلب
+  final bool animate;     // نبض خفيف
+
+  static const sizes = ['s', 'm', 'l'];
+  static const shapes = ['circle', 'rounded', 'pill', 'square'];
+  static const positions = ['top', 'center', 'bottom'];
+
+  const ClapButtonStyle({
+    this.text,
+    this.icon = '👏',
+    this.bg,
+    this.fg,
+    this.size = 'l',
+    this.shape = 'circle',
+    this.radius = 18,
+    this.position = 'center',
+    this.border = true,
+    this.animate = true,
+  });
+
+  ClapButtonStyle copyWith({
+    LText? text,
+    bool clearText = false,
+    String? icon,
+    int? bg,
+    bool clearBg = false,
+    int? fg,
+    bool clearFg = false,
+    String? size,
+    String? shape,
+    double? radius,
+    String? position,
+    bool? border,
+    bool? animate,
+  }) {
+    return ClapButtonStyle(
+      text: clearText ? null : (text ?? this.text),
+      icon: icon ?? this.icon,
+      bg: clearBg ? null : (bg ?? this.bg),
+      fg: clearFg ? null : (fg ?? this.fg),
+      size: size ?? this.size,
+      shape: shape ?? this.shape,
+      radius: radius ?? this.radius,
+      position: position ?? this.position,
+      border: border ?? this.border,
+      animate: animate ?? this.animate,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        if (text != null) 'text': text!.toJson(),
+        if (icon != '👏') 'icon': icon,
+        if (bg != null) 'bg': bg,
+        if (fg != null) 'fg': fg,
+        if (size != 'l') 'size': size,
+        if (shape != 'circle') 'shape': shape,
+        if (radius != 18) 'radius': radius,
+        if (position != 'center') 'position': position,
+        if (!border) 'border': false,
+        if (!animate) 'animate': false,
+      };
+
+  factory ClapButtonStyle.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const ClapButtonStyle();
+    String pick(String key, List<String> allowed, String fallback) {
+      final value = json[key] as String?;
+      return allowed.contains(value) ? value! : fallback;
+    }
+
+    return ClapButtonStyle(
+      text: json['text'] is Map ? LText.fromJson(Map<String, dynamic>.from(json['text'] as Map)) : null,
+      icon: json['icon'] as String? ?? '👏',
+      bg: (json['bg'] as num?)?.toInt(),
+      fg: (json['fg'] as num?)?.toInt(),
+      size: pick('size', sizes, 'l'),
+      shape: pick('shape', shapes, 'circle'),
+      radius: ((json['radius'] as num?)?.toDouble() ?? 18).clamp(0, 40),
+      position: pick('position', positions, 'center'),
+      border: json['border'] as bool? ?? true,
+      animate: json['animate'] as bool? ?? true,
+    );
+  }
+}
+
 /// قاعدة كارت واحد
 class CardRule {
   final String emoji;        // إيموجي يظهر على الكارت
@@ -120,6 +215,9 @@ class CardRule {
   final int? timerSeconds;   // مدة خاصة بالكارت ده (null = مدة إعدادات اللعبة)
   final CardDesign design;   // شكل الكارت
   final String? updatedAt;   // آخر تعديل من لوحة الأدمن
+  final bool? clapButton;    // زرار التصفيق على الكارت (null = حسب النوع: كروت التصفيق بس)
+  final ClapButtonStyle clapStyle; // شكل زرار التصفيق
+  final LText? answer;       // الإجابة (اختياري): مخفية لحد ما الهوست يكشفها للكل
 
   const CardRule({
     required this.emoji,
@@ -134,7 +232,22 @@ class CardRule {
     this.timerSeconds,
     this.design = const CardDesign(),
     this.updatedAt,
+    this.clapButton,
+    this.clapStyle = const ClapButtonStyle(),
+    this.answer,
   });
+
+  /// هل زرار التصفيق ظاهر على الكارت ده؟
+  bool get hasClapButton => clapButton ?? type == RuleType.clap;
+
+  /// الأنواع اللي ينفع يتحط عليها زرار التصفيق (اللي بتنتهي باختيار خسران)
+  static bool clapAllowedFor(RuleType type) => type == RuleType.clap || type == RuleType.assign || type == RuleType.free;
+
+  /// الكارت ده بيشغّل مرحلة التصفيق لما يتقلب؟
+  bool get usesClap => hasClapButton && clapAllowedFor(type);
+
+  /// نسخة من غير الإجابة (بتتبعت لموبايلات اللاعيبة قبل ما الهوست يكشفها)
+  CardRule withoutAnswer() => answer == null ? this : copyWith(clearAnswer: true);
 
   /// تصنيف الكارت (بيتحسب من النوع، مش بيتكتب بإيد)
   CardCategory get category => switch (type) {
@@ -164,6 +277,10 @@ class CardRule {
     bool clearTimer = false,
     CardDesign? design,
     String? updatedAt,
+    bool? clapButton,
+    ClapButtonStyle? clapStyle,
+    LText? answer,
+    bool clearAnswer = false,
   }) {
     return CardRule(
       emoji: emoji ?? this.emoji,
@@ -178,12 +295,16 @@ class CardRule {
       timerSeconds: clearTimer ? null : (timerSeconds ?? this.timerSeconds),
       design: design ?? this.design,
       updatedAt: updatedAt ?? this.updatedAt,
+      clapButton: clapButton ?? this.clapButton,
+      clapStyle: clapStyle ?? this.clapStyle,
+      answer: clearAnswer ? null : (answer ?? this.answer),
     );
   }
 
   /// تحويل لـ JSON (للحفظ في Supabase وللإرسال للموبايلات التانية)
   Map<String, dynamic> toJson() {
     final designJson = design.toJson();
+    final clapStyleJson = clapStyle.toJson();
     return {
       'emoji': emoji,
       'title': title.toJson(),
@@ -197,6 +318,9 @@ class CardRule {
       if (timerSeconds != null) 'timerSeconds': timerSeconds,
       if (designJson.isNotEmpty) 'design': designJson,
       if (updatedAt != null) 'updatedAt': updatedAt,
+      if (clapButton != null) 'clapButton': clapButton,
+      if (clapStyleJson.isNotEmpty) 'clapStyle': clapStyleJson,
+      if (answer != null) 'answer': answer!.toJson(),
     };
   }
 
@@ -214,6 +338,9 @@ class CardRule {
         timerSeconds: (json['timerSeconds'] as num?)?.toInt(),
         design: CardDesign.fromJson(json['design'] == null ? null : Map<String, dynamic>.from(json['design'] as Map)),
         updatedAt: json['updatedAt'] as String?,
+        clapButton: json['clapButton'] as bool?,
+        clapStyle: ClapButtonStyle.fromJson(json['clapStyle'] is Map ? Map<String, dynamic>.from(json['clapStyle'] as Map) : null),
+        answer: json['answer'] is Map ? LText.fromJson(Map<String, dynamic>.from(json['answer'] as Map)) : null,
       );
 }
 

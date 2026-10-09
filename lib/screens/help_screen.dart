@@ -33,6 +33,7 @@ class HelpScreen extends StatelessWidget {
           (HelpText.buttonsTitle, HelpText.buttons, AppColors.green),
           (HelpText.timersTitle, HelpText.timers, AppColors.red),
           (HelpText.specialTitle, HelpText.special, AppColors.purple),
+          (HelpText.extrasTitle, HelpText.extras, AppColors.orange),
           (HelpText.multiTitle, HelpText.multi, AppColors.teal),
         ];
         return Scaffold(
@@ -76,7 +77,7 @@ class HelpScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(game.t(HelpText.modesHint), style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+                            Text(game.t(HelpText.modesHint), style: TextStyle(fontSize: 13, color: AppColors.muted)),
                             const SizedBox(height: 10),
                             for (final entry in allModes.entries) _modeTile(entry.key, entry.value),
                           ],
@@ -105,7 +106,7 @@ class HelpScreen extends StatelessWidget {
         child: ExpansionTile(
           leading: ModeIcon(mode: mode, size: 40),
           title: Text(game.t(mode.name), style: pixelStyle(size: 16)),
-          subtitle: Text(game.t(mode.description), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          subtitle: Text(game.t(mode.description), style: TextStyle(fontSize: 12, color: AppColors.muted)),
           childrenPadding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
           children: [for (final card in cards) _cardRow(card)],
         ),

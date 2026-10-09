@@ -15,7 +15,14 @@ class AdminAuth {
   static bool get available => AppConfig.hasSupabase;
 
   /// الإيميل اللي داخل بيه دلوقتي (null = مش داخل)
-  static String? get email => available ? Supabase.instance.client.auth.currentUser?.email : null;
+  static String? get email {
+    if (!available) return null;
+    try {
+      return Supabase.instance.client.auth.currentUser?.email;
+    } catch (_) {
+      return null; // Supabase ماقدرش يبدأ (مفيش نت مثلاً): يبقى مش داخل
+    }
+  }
 
   static bool get isLoggedIn => email != null;
 

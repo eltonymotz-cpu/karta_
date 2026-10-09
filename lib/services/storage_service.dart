@@ -52,13 +52,20 @@ class StorageService {
     }
     if (file == null) return const UploadResult(); // المستخدم لغى
 
-    // التحقق من النوع
-    final ext = _extension(file.name, file.mimeType);
+    final Uint8List bytes;
+    try {
+      bytes = await file.readAsBytes();
+    } catch (e) {
+      return UploadResult(error: 'Could not read the image: $e');
+    }
+    if (bytes.isEmpty) return const UploadResult(error: 'The image file is empty');
+    // التحقق من النوع: من محتوى الملف نفسه (أول بايتات) مش من اسمه،
+    // لأن على الويب الاسم ساعات بيبقى من غير امتداد أو امتداده غلط
+    final ext = sniffImageType(bytes) ?? _extension(file.name, file.mimeType);
     final contentType = allowedTypes[ext];
     if (contentType == null) {
       return UploadResult(error: 'Unsupported file type (.$ext). Use PNG, JPG, WEBP or GIF');
     }
-    final bytes = await file.readAsBytes();
     // التحقق من الحجم
     if (bytes.length > maxBytes) {
       return UploadResult(error: 'Image is too large (${(bytes.length / 1024 / 1024).toStringAsFixed(1)} MB, max 2 MB)');
@@ -98,6 +105,23 @@ class StorageService {
     final index = url.indexOf(marker);
     if (index < 0) return null;
     return Uri.decodeComponent(url.substring(index + marker.length));
+  }
+
+  /// نوع الصورة من أول بايتات الملف (png / jpg / gif / webp) أو null لو مش صورة معروفة
+  static String? sniffImageType(Uint8List b) {
+    bool starts(List<int> sig, [int offset = 0]) {
+      if (b.length < offset + sig.length) return false;
+      for (var i = 0; i < sig.length; i++) {
+        if (b[offset + i] != sig[i]) return false;
+      }
+      return true;
+    }
+
+    if (starts([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])) return 'png';
+    if (starts([0xFF, 0xD8, 0xFF])) return 'jpg';
+    if (starts([0x47, 0x49, 0x46, 0x38])) return 'gif';
+    if (starts([0x52, 0x49, 0x46, 0x46]) && starts([0x57, 0x45, 0x42, 0x50], 8)) return 'webp';
+    return null;
   }
 
   static String _extension(String name, String? mimeType) {

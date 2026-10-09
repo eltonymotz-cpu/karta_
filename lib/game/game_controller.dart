@@ -33,7 +33,6 @@ import '../data/texts.dart';
 import '../models.dart';
 import '../services/room_service.dart';
 import '../services/sound_service.dart';
-import '../theme.dart';
 import 'game_settings.dart';
 
 /// الشاشات الموجودة في التطبيق
@@ -64,6 +63,74 @@ class GameEvent {
       (json['count'] as num?)?.toInt() ?? 0,
     );
   }
+}
+
+/// حالة دور لاعب (ساعة كل لاعب)
+enum TurnStatus { active, answered, noAnswer, finished, skipped }
+
+/// دور واحد: مين لعب، أنهي كارت، وقته (كل الأوقات بساعة الهوست بالملي ثانية)
+class TurnRecord {
+  final int player;
+  final String? card;
+  final int startedAt;
+  int? endedAt;          // null = الدور لسه شغال
+  int pausedMs;          // الوقت اللي الساعة كانت واقفة فيه
+  int? pausedAt;         // الساعة واقفة دلوقتي من الوقت ده
+  TurnStatus status;
+
+  TurnRecord({
+    required this.player,
+    required this.card,
+    required this.startedAt,
+    this.endedAt,
+    this.pausedMs = 0,
+    this.pausedAt,
+    this.status = TurnStatus.active,
+  });
+
+  bool get isActive => endedAt == null;
+  bool get isPaused => pausedAt != null && endedAt == null;
+
+  /// الوقت اللي فات من الدور (بيتحسب من الأوقات المسجلة، مش من عداد شغال)
+  int elapsedMs(int now) {
+    final end = endedAt ?? pausedAt ?? now;
+    return max(0, end - startedAt - pausedMs);
+  }
+
+  Map<String, dynamic> toJson() => {
+        'p': player,
+        if (card != null) 'c': card,
+        's': startedAt,
+        if (endedAt != null) 'e': endedAt,
+        if (pausedMs != 0) 'pm': pausedMs,
+        if (pausedAt != null) 'pa': pausedAt,
+        'st': status.name,
+      };
+
+  static TurnRecord fromJson(Map json) => TurnRecord(
+        player: (json['p'] as num).toInt(),
+        card: json['c'] as String?,
+        startedAt: (json['s'] as num).toInt(),
+        endedAt: (json['e'] as num?)?.toInt(),
+        pausedMs: (json['pm'] as num?)?.toInt() ?? 0,
+        pausedAt: (json['pa'] as num?)?.toInt(),
+        status: TurnStatus.values.firstWhere((t) => t.name == json['st'], orElse: () => TurnStatus.finished),
+      );
+}
+
+/// ضغطة على زرار التصفيق من موبايل لاعب (الترتيب = ترتيب وصولها للهوست)
+class ClapTap {
+  final int player;
+  final int at;
+  const ClapTap(this.player, this.at);
+}
+
+/// مكان لاعب في الترتيب (الأقل كروت هو الأول، والمتعادلين ليهم نفس المركز)
+class RankEntry {
+  final int player;
+  final int rank;
+  final int cards;
+  const RankEntry(this.player, this.rank, this.cards);
 }
 
 class GameController extends ChangeNotifier {
@@ -105,6 +172,11 @@ class GameController extends ChangeNotifier {
   PlayingCard? silentCard;              // كارت الـ Q اللي مع الصامت (بيتنقل للي يكلّمه)
   final List<LText> log = [];           // سجل الأحداث (الأحدث في الأول)
   GameEvent? lastEvent;                 // آخر حدث (للأنيميشن)
+  final List<TurnRecord> turns = [];    // كل الأدوار اللي اتلعبت (ساعة كل لاعب)
+  bool clapOpen = false;                // مرحلة التصفيق مفتوحة (الضغطات بتتسجل)
+  final List<ClapTap> clapTaps = [];    // ضغطات التصفيق بالترتيب
+  bool answerShown = false;             // الهوست كشف إجابة الكارت الحالي؟
+  int clockOffset = 0;                  // موبايل اللاعب: فرق ساعته عن ساعة الهوست
 
   // ---------------- المؤقتات ----------------
   DateTime? questionEndsAt;             // وقت نهاية مؤقت السؤال (null = مفيش مؤقت شغال)
@@ -170,13 +242,65 @@ class GameController extends ChangeNotifier {
   bool get canPassSilence => isHost && silentIndex >= 0 && silentCard != null && currentCard == null;
 
   /// هل نعرض زرار "مش عارفين؟ حطّه على جنب"؟ (في كروت التصفيق وقت اختيار الخسران)
-  bool get canSetAside => isHost && phase == CardPhase.choosing && currentRule?.type == RuleType.clap;
+  bool get canSetAside => isHost && phase == CardPhase.choosing && (currentRule?.usesClap ?? false);
 
   /// هل نعرض زرار "محدش خسر"؟ (بس في القواعد من نوع assign)
   bool get allowNobody => currentRule?.type == RuleType.assign;
 
   /// الهوست ينفع يعمل سكيب دلوقتي؟
   bool get canSkip => isHost && currentCard != null;
+
+  /// الهوست ينفع يعدّي دور لاعب (من غير ما يسحب)؟
+  bool get canSkipPlayer => isHost && currentCard == null && players.isNotEmpty && screen == AppScreen.game;
+
+  /// الوقت دلوقتي بساعة الهوست (موبايل اللاعب بيصلّح فرق الساعة)
+  int get nowMs => DateTime.now().millisecondsSinceEpoch + clockOffset;
+
+  /// الدور الشغال دلوقتي (لو فيه)
+  TurnRecord? get activeTurn => turns.isNotEmpty && turns.last.isActive ? turns.last : null;
+
+  /// آخر دور (شغال أو خلص) - الهوست يقدر يغيّر حالته
+  TurnRecord? get lastTurn => turns.isEmpty ? null : turns.last;
+
+  /// الوقت الكلي للاعب في كل أدواره
+  int playerTotalMs(int player) {
+    final now = nowMs;
+    return turns.where((t) => t.player == player).fold(0, (sum, t) => sum + t.elapsedMs(now));
+  }
+
+  /// الترتيب: الأقل كروت هو الأول، والمتعادلين ليهم نفس المركز (1، 1، 3)
+  List<RankEntry> get ranking {
+    final order = List.generate(players.length, (i) => i)
+      ..sort((a, b) {
+        final byCards = players[a].cards.length.compareTo(players[b].cards.length);
+        return byCards != 0 ? byCards : a.compareTo(b); // التعادل: بترتيب القعدة
+      });
+    final result = <RankEntry>[];
+    for (var k = 0; k < order.length; k++) {
+      final count = players[order[k]].cards.length;
+      final rank = k > 0 && result[k - 1].cards == count ? result[k - 1].rank : k + 1;
+      result.add(RankEntry(order[k], rank, count));
+    }
+    return result;
+  }
+
+  /// الكارت الحالي فيه زرار تصفيق شغال؟
+  bool get clapActive => currentRule?.usesClap ?? false;
+
+  /// أول واحد صقّف (بيظهر على طول)
+  int? get clapFirst => clapTaps.isEmpty ? null : clapTaps.first.player;
+
+  /// آخر واحد صقّف: بيتحدد بس بعد ما الهوست يقفل التصفيق (عشان مايتقالش بدري)
+  int? get clapLast => clapOpen || clapTaps.isEmpty ? null : clapTaps.last.player;
+
+  /// موبايل اللاعب: أنا صقّفت خلاص؟
+  bool get iClapped => myPlayerIndex != null && clapTaps.any((t) => t.player == myPlayerIndex);
+
+  /// موبايل اللاعب: ينفع أصقّف دلوقتي؟
+  bool get canClap => isViewer && clapOpen && phase == CardPhase.clapGo && myPlayerIndex != null && !iClapped;
+
+  /// الكارت الحالي ليه إجابة؟
+  bool get hasAnswer => currentRule?.answer != null;
 
   /// شكل ضهر الكارت الجاي: تصنيفه (عادي/أكشن) ولونه الخاص لو الأدمن غيّره
   CardCategory get nextCategory {
@@ -311,7 +435,7 @@ class GameController extends ChangeNotifier {
     _cancelTimers();
     lastNames = List.of(names);
     players = [
-      for (var i = 0; i < names.length; i++) Player(names[i], AppColors.playerColors[i % AppColors.playerColors.length]),
+      for (var i = 0; i < names.length; i++) Player(names[i], i),
     ];
     currentIndex = 0;
     deck = _buildDeck();
@@ -324,6 +448,10 @@ class GameController extends ChangeNotifier {
     silentCard = null;
     lastEvent = null;
     timedOut = false;
+    turns.clear();
+    clapTaps.clear();
+    clapOpen = false;
+    answerShown = false;
     log.clear();
     // لو عدد اللاعيبة قل، نشيل المسكات اللي لأرقام مبقتش موجودة
     claims.removeWhere((index, _) => index >= players.length);
@@ -389,7 +517,12 @@ class GameController extends ChangeNotifier {
   // =================================================================
   void tapCard() {
     if (isViewer) {
-      _requestDraw(); // موبايل اللاعب: يطلب يسحب لو ده دوره
+      // موبايل اللاعب: يصقّف لو التصفيق مفتوح، أو يطلب يسحب لو ده دوره
+      if (phase == CardPhase.clapGo) {
+        requestClap();
+      } else {
+        _requestDraw();
+      }
       return;
     }
     // نتجاهل الضغطة لو جت بسرعة جداً بعد اللي قبلها (ضغطة مزدوجة بالغلط)
@@ -407,8 +540,10 @@ class GameController extends ChangeNotifier {
         notifyListeners();
         break;
       case CardPhase.clapGo:
+        // الهوست دايس على الكارت = التصفيق خلص: نقفل التسجيل ونروح لاختيار الخسران
         sound.play(Sfx.clap);
         HapticFeedback.heavyImpact();
+        _closeClap();
         phase = CardPhase.choosing;
         notifyListeners();
         break;
@@ -439,11 +574,15 @@ class GameController extends ChangeNotifier {
     currentRule = rule;
     phase = CardPhase.front;
     timedOut = false;
+    answerShown = false;
+    clapTaps.clear();
+    clapOpen = false;
+    _startTurn(card.label);
     _silentBeforeDraw = silentIndex;
     _silentCardBeforeDraw = silentCard;
 
     // صوت القلب (ماعدا كروت التصفيق: ليها صوت الإنذار لوحده عشان يبان على طول)
-    if (rule.type != RuleType.clap) {
+    if (!rule.usesClap) {
       sound.play(Sfx.flip);
       HapticFeedback.selectionClick();
     }
@@ -468,14 +607,16 @@ class GameController extends ChangeNotifier {
         caduCards.add(card); // الكادو يتفعّل على طول
         Future.delayed(const Duration(milliseconds: 200), () => sound.play(Sfx.gift));
         break;
-      case RuleType.clap:
-        // التصفيق بيبدأ في نفس لحظة قلب الكارت: الزرار الكبير يظهر على طول
-        phase = CardPhase.clapGo;
-        sound.play(Sfx.alarm);
-        HapticFeedback.heavyImpact();
-        break;
       default:
         break;
+    }
+    // زرار التصفيق (أي كارت الأدمن فعّل عليه الزرار): التصفيق بيبدأ في نفس لحظة قلب الكارت،
+    // والضغطات من موبايلات اللاعيبة بتتسجل لحد ما الهوست يقفل
+    if (rule.usesClap) {
+      phase = CardPhase.clapGo;
+      clapOpen = true;
+      sound.play(Sfx.alarm);
+      HapticFeedback.heavyImpact();
     }
 
     // كروت الأسئلة: مؤقت الإجابة بيبدأ أول ما الكارت يتقلب
@@ -674,6 +815,135 @@ class GameController extends ChangeNotifier {
   }
 
   // =================================================================
+  // ساعة كل لاعب (الأدوار)
+  // -----------------------------------------------------------------
+  // الدور بيبدأ لما صاحب الدور يسحب الكارت، وبيخلص لما الكارت يخلص (أو الهوست ينهيه).
+  // كل دور بيتسجل لوحده، فوقت لاعب مابيتمسحش لما لاعب تاني يبدأ.
+  // =================================================================
+  void _startTurn(String? card) {
+    if (activeTurn != null) return; // مفيش دورين شغالين في نفس الوقت
+    turns.add(TurnRecord(player: currentIndex, card: card, startedAt: nowMs));
+  }
+
+  void _endTurn() {
+    final turn = activeTurn;
+    if (turn == null) return;
+    final now = nowMs;
+    if (turn.pausedAt != null) {
+      turn.pausedMs += now - turn.pausedAt!;
+      turn.pausedAt = null;
+    }
+    turn.endedAt = now;
+    if (turn.status == TurnStatus.active) turn.status = TurnStatus.finished;
+    if (turn.player < players.length) {
+      _addLog(UiText.logTurnEnded, {'name': players[turn.player].name, 'time': formatClock(turn.elapsedMs(now))});
+    }
+  }
+
+  /// الهوست: إيقاف/تكملة ساعة الدور الشغال
+  void toggleTurnPause() {
+    final turn = activeTurn;
+    if (isViewer || turn == null) return;
+    final now = nowMs;
+    if (turn.pausedAt == null) {
+      turn.pausedAt = now;
+    } else {
+      turn.pausedMs += now - turn.pausedAt!;
+      turn.pausedAt = null;
+    }
+    notifyListeners();
+  }
+
+  /// الهوست: ينهي ساعة الدور الحالي (الكارت نفسه بيكمل عادي)
+  void endTurnNow() {
+    if (isViewer || activeTurn == null) return;
+    _endTurn();
+    notifyListeners();
+  }
+
+  /// الهوست: يسجل إن صاحب الدور جاوب أو ماجاوبش (على الدور الشغال أو آخر دور)
+  void markTurn(TurnStatus status) {
+    final turn = lastTurn;
+    if (isViewer || turn == null || turn.status == TurnStatus.skipped) return;
+    if (status != TurnStatus.answered && status != TurnStatus.noAnswer) return;
+    turn.status = status;
+    if (turn.player < players.length) {
+      _addLog(UiText.logTurnStatus, {
+        'name': players[turn.player].name,
+        'status': status == TurnStatus.answered ? UiText.turnAnswered : UiText.turnNoAnswer,
+      });
+    }
+    notifyListeners();
+  }
+
+  /// الهوست: يعدّي دور لاعب من غير ما يسحب (الدور بيتسجل "اتعدّى")
+  void skipPlayer() {
+    if (!canSkipPlayer || _busy) return;
+    final now = nowMs;
+    turns.add(TurnRecord(player: currentIndex, card: null, startedAt: now, endedAt: now, status: TurnStatus.skipped));
+    _addLog(UiText.logPlayerSkipped, {'name': currentPlayer.name});
+    sound.play(Sfx.boing);
+    currentIndex = (currentIndex + 1) % players.length;
+    notifyListeners();
+  }
+
+  // =================================================================
+  // زرار التصفيق (التسقيف): أول وآخر واحد صقّف
+  // =================================================================
+
+  /// موبايل اللاعب: صقّفت (بتتبعت للهوست وهو اللي بيسجل الترتيب)
+  void requestClap() {
+    if (!canClap) return;
+    // نعرض "صقّفت" على طول، والهوست بيأكد في الحالة الجاية
+    clapTaps.add(ClapTap(myPlayerIndex!, nowMs));
+    HapticFeedback.mediumImpact();
+    room?.sendAction({'type': 'clap', 'player': myPlayerIndex, 'device': deviceId});
+    notifyListeners();
+  }
+
+  /// الهوست: تسجيل ضغطة تصفيق (ضغطة واحدة لكل لاعب، والترتيب = ترتيب الوصول)
+  bool registerClap(int player) {
+    if (isViewer || !clapOpen || phase != CardPhase.clapGo || !clapActive) return false;
+    if (player < 0 || player >= players.length) return false;
+    if (clapTaps.any((t) => t.player == player)) return false; // صقّف قبل كده
+    clapTaps.add(ClapTap(player, nowMs));
+    sound.play(Sfx.clap);
+    notifyListeners();
+    return true;
+  }
+
+  /// قفل التصفيق: الترتيب بيتثبت وبيتحدد أول وآخر واحد
+  void _closeClap() {
+    if (!clapOpen) return;
+    clapOpen = false;
+    if (clapTaps.isNotEmpty) {
+      _addLog(UiText.logClapResult, {
+        'first': players[clapTaps.first.player].name,
+        'last': players[clapTaps.last.player].name,
+      });
+    }
+  }
+
+  /// الهوست: يفتح التصفيق تاني (لو اتقفل بدري) - الضغطات القديمة بتفضل
+  void reopenClap() {
+    if (isViewer || !clapActive || clapOpen || currentCard == null) return;
+    clapOpen = true;
+    phase = CardPhase.clapGo;
+    notifyListeners();
+  }
+
+  // =================================================================
+  // الإجابة: الهوست بيكشفها للكل
+  // =================================================================
+  void toggleAnswer() {
+    final answer = currentRule?.answer;
+    if (isViewer || answer == null || currentCard == null) return;
+    answerShown = !answerShown;
+    if (answerShown) _addLog(UiText.logAnswerShown, {'answer': answer});
+    notifyListeners();
+  }
+
+  // =================================================================
   // تصحيح الكروت (الهوست بس)
   // =================================================================
 
@@ -698,10 +968,14 @@ class GameController extends ChangeNotifier {
   /// الانتقال للدور اللي بعده (أو إعادة نفس الدور لو sameTurn = true)
   void _nextTurn({bool sameTurn = false}) {
     _cancelTimers();
+    _endTurn();
     currentCard = null;
     currentRule = null;
     phase = CardPhase.back;
     timedOut = false;
+    answerShown = false;
+    clapOpen = false;
+    clapTaps.clear();
     if (deck.isEmpty) {
       finishGame();
       return;
@@ -836,6 +1110,11 @@ class GameController extends ChangeNotifier {
         if (!_debounce()) return;
         _drawCard();
         break;
+      case 'clap':
+        // مسموح بس: التصفيق مفتوح، والطلب من الموبايل الماسك اللاعب ده، وأول ضغطة ليه
+        if (screen != AppScreen.game || player == null || claims[player] != device) return;
+        registerClap(player);
+        break;
       default:
         // أي طلب تاني (سكيب، اختيار خسران، تعديل كروت...) مش مسموح من موبايل لاعب
         break;
@@ -855,6 +1134,14 @@ class GameController extends ChangeNotifier {
 
   void _broadcastState() => room?.sendState(_toSnapshot());
 
+  /// نسخة الحالة اللي بتتبعت للموبايلات (للاختبارات)
+  @visibleForTesting
+  Map<String, dynamic> snapshotForTest() => _toSnapshot();
+
+  /// موبايل لاعب بيطبّق حالة جاية من الهوست (للاختبارات)
+  @visibleForTesting
+  void applySnapshotForTest(Map<String, dynamic> s) => _applySnapshot(s);
+
   /// نسخة من حالة اللعبة في شكل JSON (اللي موبايلات اللاعيبة محتاجينه عشان يرسموا الشاشة)
   Map<String, dynamic> _toSnapshot() {
     final next = _nextRule;
@@ -868,7 +1155,13 @@ class GameController extends ChangeNotifier {
       'deck': deck.length,
       'deckTotal': deckSize(modeId),
       'card': currentCard?.label,
-      'rule': currentRule?.toJson(),
+      // الإجابة مابتتبعتش للموبايلات غير بعد ما الهوست يكشفها
+      'rule': (answerShown ? currentRule : currentRule?.withoutAnswer())?.toJson(),
+      'answerShown': answerShown,
+      'now': DateTime.now().millisecondsSinceEpoch,
+      'turns': [for (final t in turns.length > 80 ? turns.sublist(turns.length - 80) : turns) t.toJson()],
+      'clapOpen': clapOpen,
+      'clapTaps': [for (final t in clapTaps) [t.player, t.at]],
       'phase': phase.name,
       'cadu': [for (final c in caduCards) c.label],
       'aside': [for (final c in asideCards) c.label],
@@ -909,12 +1202,15 @@ class GameController extends ChangeNotifier {
     }
 
     viewerHasState = true;
+    // فرق ساعة الموبايل عن ساعة الهوست (عشان العدادات تبقى مظبوطة على كل الموبايلات)
+    final hostNow = (s['now'] as num?)?.toInt();
+    if (hostNow != null) clockOffset = hostNow - DateTime.now().millisecondsSinceEpoch;
     screen = screenName == 'results' ? AppScreen.results : AppScreen.game;
     _viewerModeName = LText.fromJson(Map<String, dynamic>.from(s['mode'] as Map));
     final list = (s['players'] as List).cast<Map>();
     players = [
       for (var i = 0; i < list.length; i++)
-        Player(list[i]['name'] as String, AppColors.playerColors[i % AppColors.playerColors.length])
+        Player(list[i]['name'] as String, i)
           ..cards.addAll([for (final l in (list[i]['cards'] as List)) PlayingCard.fromLabel(l as String)]),
     ];
     currentIndex = s['current'] as int? ?? 0;
@@ -936,10 +1232,21 @@ class GameController extends ChangeNotifier {
       ..clear()
       ..addAll([for (final l in (s['log'] as List? ?? [])) LText.fromJson(Map<String, dynamic>.from(l as Map))]);
     final qEnds = (s['qEnds'] as num?)?.toInt();
-    questionEndsAt = qEnds == null ? null : DateTime.fromMillisecondsSinceEpoch(qEnds);
+    questionEndsAt = qEnds == null ? null : DateTime.fromMillisecondsSinceEpoch(qEnds - clockOffset);
+    answerShown = s['answerShown'] as bool? ?? false;
+    turns
+      ..clear()
+      ..addAll([for (final t in (s['turns'] as List? ?? [])) TurnRecord.fromJson(t as Map)]);
+    clapOpen = s['clapOpen'] as bool? ?? false;
+    clapTaps
+      ..clear()
+      ..addAll([
+        for (final t in (s['clapTaps'] as List? ?? []))
+          ClapTap(((t as List)[0] as num).toInt(), (t[1] as num).toInt()),
+      ]);
     timedOut = s['timedOut'] as bool? ?? false;
     final bombEnds = (s['bombEnds'] as num?)?.toInt();
-    bombEndsAt = bombEnds == null ? null : DateTime.fromMillisecondsSinceEpoch(bombEnds);
+    bombEndsAt = bombEnds == null ? null : DateTime.fromMillisecondsSinceEpoch(bombEnds - clockOffset);
     lastEvent = GameEvent.fromJson(s['event']);
     final rawClaims = s['claims'];
     claims = rawClaims is Map
@@ -976,4 +1283,12 @@ class GameController extends ChangeNotifier {
     _closeRoom();
     super.dispose();
   }
+}
+
+/// وقت بشكل ساعة إيقاف: 00:35 أو 1:02:05
+String formatClock(int ms) {
+  final total = max(0, ms) ~/ 1000;
+  final h = total ~/ 3600, m = (total % 3600) ~/ 60, sec = total % 60;
+  String two(int n) => n.toString().padLeft(2, '0');
+  return h > 0 ? '$h:${two(m)}:${two(sec)}' : '${two(m)}:${two(sec)}';
 }
