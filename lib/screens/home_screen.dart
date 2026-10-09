@@ -14,7 +14,10 @@ import '../game/game_controller.dart';
 import '../services/admin_auth.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../services/app_settings.dart';
+import '../services/device_identity.dart';
 import 'help_screen.dart';
+import 'voice_library_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final GameController game;
@@ -26,6 +29,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _codeController = TextEditingController();
+  late final _nameController = TextEditingController(text: widget.game.nickname);
   int _logoTaps = 0;              // عدد الضغطات على اللوجو
   DateTime _firstTap = DateTime(2000);
 
@@ -34,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _codeController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -180,6 +185,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _join() {
     if (!AppConfig.hasSupabase) return _snack(game.t(UiText.noSupabase));
     if (_codeController.text.trim().length < 4) return;
+    game.setNickname(_nameController.text);
+    saveNickname(game.nickname);
     game.joinRoom(_codeController.text);
   }
 
@@ -237,16 +244,27 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: AppColors.teal,
                           onTap: game.chooseSingleDevice,
                         ),
-                        const SizedBox(height: 16),
-                        _option(
-                          emoji: '📲',
-                          title: game.t(UiText.multiDevice),
-                          description: game.t(UiText.multiDeviceDesc),
-                          color: AppColors.orange,
-                          onTap: _multi,
-                        ),
-                        const SizedBox(height: 28),
-                        _joinBox(),
+                        // الأونلاين (الأدمن يقدر يقفله من الإعدادات)
+                        if (AppSettings.current.onlineEnabled) ...[
+                          const SizedBox(height: 16),
+                          _option(
+                            emoji: '📲',
+                            title: game.t(UiText.multiDevice),
+                            description: game.t(UiText.multiDeviceDesc),
+                            color: AppColors.orange,
+                            onTap: _multi,
+                          ),
+                          const SizedBox(height: 28),
+                          _joinBox(),
+                        ],
+                        if (AppConfig.hasSupabase && AppSettings.current.voiceOnline) ...[
+                          const SizedBox(height: 16),
+                          TextButton.icon(
+                            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => VoiceLibraryScreen(game: game))),
+                            icon: Icon(Icons.library_music, color: AppColors.ink),
+                            label: Text(game.t(UiText.voiceLibrary), style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -309,6 +327,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // اسمي في الشات (اختياري: لو ماسك لاعب بيظهر اسم اللاعب)
+          _BoxField(controller: _nameController, hint: game.t(UiText.yourName), small: true),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(

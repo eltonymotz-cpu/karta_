@@ -38,6 +38,23 @@ Future<void> main() async {
   final action = await gotAction.future.timeout(const Duration(seconds: 10));
   if (action['type'] != 'draw') throw StateError('type was overwritten: $action');
   print('action latency ${sw.elapsedMilliseconds - t0}ms');
+  // الشات: اللاعب يبعت رسالة → الهوست يرجّعها للكل كحدث "chat" → اللاعب يستلمها
+  final gotChat = Completer<Map>();
+  viewer.onBroadcast(event: 'chat', callback: (m) {
+    final data = (m['payload'] is Map ? m['payload'] : m)['data'];
+    if (!gotChat.isCompleted) gotChat.complete(data as Map);
+  });
+  host.onBroadcast(event: 'action', callback: (m) {
+    final data = (m['payload'] is Map ? m['payload'] : m)['data'] as Map;
+    if (data['type'] == 'chat') {
+      host.sendBroadcastMessage(event: 'chat', payload: {'data': {'id': data['id'], 'd': data['device'], 'n': 'Sara', 't': data['text'], 'c': 'lobby', 'at': 1}});
+    }
+  });
+  final t1 = sw.elapsedMilliseconds;
+  viewer.sendBroadcastMessage(event: 'action', payload: {'data': {'type': 'chat', 'id': 'probe-1', 'device': 'probe', 'text': 'أهلا 👋'}});
+  final chat = await gotChat.future.timeout(const Duration(seconds: 10));
+  if (chat['t'] != 'أهلا 👋' || chat['id'] != 'probe-1') throw StateError('chat corrupted: $chat');
+  print('chat round trip ${sw.elapsedMilliseconds - t1}ms: $chat');
   await hostClient.removeAllChannels();
   await viewerClient.removeAllChannels();
   print('OK');

@@ -33,15 +33,15 @@ class RoomService {
   /// onAction: طلب من موبايل لاعب (زي "عايز أسحب") - الهوست بيتأكد منه قبل ما ينفذه
   static RoomService host({
     required String code,
-    required void Function() onHello,
+    required void Function(Map<String, dynamic> hello) onHello,
     required void Function(Map<String, dynamic> action) onAction,
     void Function()? onConnected,
   }) {
     final room = RoomService._(code, true);
     room._open(
-      listeners: {'hello': (_) => onHello(), 'action': onAction},
+      listeners: {'hello': onHello, 'action': onAction},
       onConnected: () {
-        onHello(); // نبعت الحالة أول ما نتصل
+        onHello(const {}); // نبعت الحالة أول ما نتصل
         onConnected?.call();
       },
     );
@@ -53,13 +53,20 @@ class RoomService {
   static RoomService join({
     required String code,
     required void Function(Map<String, dynamic> state) onState,
+    void Function(String event, Map<String, dynamic> data)? onEvent,
     void Function()? onConnected,
+    Map<String, dynamic> hello = const {},
   }) {
     final room = RoomService._(code, false);
     room._open(
-      listeners: {'state': onState},
+      listeners: {
+        'state': onState,
+        // أحداث صغيرة من الهوست (رسالة شات جديدة، مسح رسالة، رفض رسالة)
+        // بدل ما نبعت الحالة كلها مع كل رسالة
+        for (final event in eventNames) event: (data) => onEvent?.call(event, data),
+      },
       onConnected: () {
-        room._send('hello', {}); // نطلب الحالة الحالية من الهوست
+        room._send('hello', hello); // نطلب الحالة الحالية من الهوست (ومعاها اسمنا)
         onConnected?.call();
       },
     );
@@ -86,6 +93,14 @@ class RoomService {
 
   /// الهوست بيبعت حالة اللعبة لكل المتفرجين
   void sendState(Map<String, dynamic> state) => _send('state', state);
+
+  /// أسماء الأحداث الصغيرة اللي الهوست بيبعتها (الشات)
+  static const eventNames = ['chat', 'chatDel', 'chatReject'];
+
+  /// الهوست بيبعت حدث صغير (رسالة شات مثلاً)
+  void sendEvent(String event, Map<String, dynamic> data) {
+    if (isHost && eventNames.contains(event)) _send(event, data);
+  }
 
   /// موبايل لاعب بيبعت طلب للهوست (الهوست هو اللي بيقرر ينفذه ولا لأ)
   void sendAction(Map<String, dynamic> action) {

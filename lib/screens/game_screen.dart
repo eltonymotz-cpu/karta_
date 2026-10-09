@@ -15,6 +15,7 @@ import '../game/game_controller.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../widgets/big_card.dart';
+import '../widgets/chat_panel.dart';
 import '../widgets/common.dart';
 import '../widgets/game_fx.dart';
 import '../widgets/game_panels.dart';
@@ -220,8 +221,26 @@ class _WaitingForHost extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final connected = game.room?.connected ?? false;
+    // الهوست قفل القعدة أو طلّعني منها
+    if (game.roomClosed || game.wasKicked) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🚪', style: TextStyle(fontSize: 64)),
+              const SizedBox(height: 12),
+              Headline(game.t(game.wasKicked ? UiText.kickedOut : UiText.roomClosedMsg), size: 24, align: TextAlign.center),
+              const SizedBox(height: 20),
+              BrutalButton(label: game.t(UiText.back), onTap: game.goHome),
+            ],
+          ),
+        ),
+      );
+    }
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -243,6 +262,13 @@ class _WaitingForHost extends StatelessWidget {
             SizedBox(width: 28, height: 28, child: CircularProgressIndicator(color: AppColors.ink, strokeWidth: 3)),
             const SizedBox(height: 14),
             Headline(game.t(connected ? UiText.waitingHost : UiText.connecting), size: 22, align: TextAlign.center),
+            // اللوبي: مين في القعدة + الشات وإحنا مستنيين
+            if (connected && game.chatAvailable) ...[
+              const SizedBox(height: 20),
+              SizedBox(height: 220, width: 360, child: BrutalBox(padding: EdgeInsets.zero, child: LobbyList(game: game))),
+              const SizedBox(height: 12),
+              BrutalButton(label: '💬 ${game.t(UiText.lobbyChat)}', onTap: () => showChatSheet(context, game), color: AppColors.blue),
+            ],
           ],
         ),
       ),
@@ -280,8 +306,10 @@ class _TopBar extends StatelessWidget {
           child: Icon(game.sound.enabled ? Icons.volume_up : Icons.volume_off),
         ),
         const SizedBox(width: 8),
-        LangToggle(game: game),
+        LangToggle(game: game, compact: online),
         const Spacer(),
+        // الشات (في القعدات الأونلاين)
+        if (game.chatAvailable) ...[ChatButton(game: game), const SizedBox(width: 8)],
         // الهوست: زرار الـ QR فيه كود القعدة
         if (online && !game.isViewer) ...[
           SquareButton(
@@ -289,7 +317,7 @@ class _TopBar extends StatelessWidget {
             onTap: () => showQrDialog(context, game),
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: [const Icon(Icons.qr_code_2), const SizedBox(width: 4), Text(game.roomCode ?? '')],
+              children: [const Icon(Icons.qr_code_2), if (!game.chatAvailable) ...[const SizedBox(width: 4), Text(game.roomCode ?? '')]],
             ),
           ),
           const SizedBox(width: 8),

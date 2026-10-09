@@ -8,7 +8,9 @@ import '../data/texts.dart';
 import '../game/game_controller.dart';
 import '../game/game_settings.dart';
 import '../theme.dart';
+import '../widgets/chat_panel.dart';
 import '../widgets/common.dart';
+import '../widgets/qr_dialog.dart';
 
 class SetupScreen extends StatefulWidget {
   final GameController game;
@@ -116,6 +118,8 @@ class _SetupScreenState extends State<SetupScreen> {
                         ),
                         const SizedBox(height: 20),
                         _logo(),
+                        // القعدة الأونلاين مفتوحة من دلوقتي: اللاعيبة يدخلوا ويتكلموا وإنت بتجهز
+                        if (game.multiDevice && game.room != null) ...[const SizedBox(height: 8), _lobbyBox()],
                         const SizedBox(height: 24),
                         _sectionTitle(game.t(UiText.players), game.t(UiText.playersRange)),
                         const SizedBox(height: 10),
@@ -140,6 +144,53 @@ class _SetupScreenState extends State<SetupScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// اللوبي: كود القعدة + QR + مين دخل + الشات
+  Widget _lobbyBox() {
+    final members = game.lobby.values.toList();
+    return RetroWindow(
+      title: '🟢 ${game.t(UiText.lobbyTitle)}',
+      barColor: AppColors.green,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(game.t(UiText.lobbyHint), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  alignment: Alignment.center,
+                  decoration: Brutal.box(color: AppColors.yellow, borderWidth: 2, shadowOffset: const Offset(2, 2)),
+                  child: Text(game.roomCode ?? '', textDirection: TextDirection.ltr, style: rankStyle(size: 24)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SquareButton(onTap: () => showQrDialog(context, game), child: const Icon(Icons.qr_code_2)),
+              const SizedBox(width: 8),
+              ChatButton(game: game),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: members.isEmpty
+                ? [Text(game.t(UiText.nobodyYet), style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w700))]
+                : [
+                    for (final m in members)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: Brutal.box(borderWidth: 1.6, shadowOffset: Offset.zero),
+                        child: Text('● ${m.name}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.ink)),
+                      ),
+                  ],
+          ),
+        ],
       ),
     );
   }

@@ -33,6 +33,8 @@ import '../data/texts.dart';
 import '../models.dart';
 import '../services/room_service.dart';
 import '../services/sound_service.dart';
+import '../services/app_settings.dart';
+import 'chat.dart';
 import 'game_settings.dart';
 
 /// الشاشات الموجودة في التطبيق
@@ -125,6 +127,24 @@ class ClapTap {
   const ClapTap(this.player, this.at);
 }
 
+/// موبايل في القعدة (اللوبي)
+class LobbyMember {
+  final String name;
+  int lastSeen;          // آخر مرة وصل منه حاجة (بساعة الهوست)
+  final bool muted;
+  LobbyMember(this.name, this.lastSeen, {this.muted = false});
+}
+
+/// رسالة بعتها وبستنى الهوست يأكدها
+class PendingChat {
+  final String id;
+  final String text;
+  final VoiceAttachment? voice;
+  ChatRejection? failed; // null = بتتبعت
+  Timer? timer;
+  PendingChat({required this.id, required this.text, this.voice});
+}
+
 /// مكان لاعب في الترتيب (الأقل كروت هو الأول، والمتعادلين ليهم نفس المركز)
 class RankEntry {
   final int player;
@@ -153,7 +173,9 @@ class GameController extends ChangeNotifier {
   RoomService? room;                    // القعدة أونلاين (لو موجودة)
   bool viewerHasState = false;          // موبايل اللاعب استلم أول حالة من الهوست؟
   LText? _viewerModeName;               // اسم النمط عند اللاعب (جاي من الهوست)
-  final String deviceId = _newDeviceId(); // رقم مميز للموبايل ده
+  String deviceId = savedDeviceId ?? _newDeviceId(); // رقم مميز للموبايل ده (بيتحفظ عشان لو الصفحة اتعملها ريفريش يرجع لنفس مكانه)
+  static String? savedDeviceId;         // بيتحمل من الجهاز قبل ما التطبيق يبدأ (main.dart)
+  static String savedNickname = '';
   Map<int, String> claims = {};         // مين ماسك أنهي لاعب: رقم اللاعب ← رقم الموبايل
   int? myPlayerIndex;                   // موبايل اللاعب: أنا أنهي لاعب؟
   bool drawPending = false;             // موبايل اللاعب: طلب السحب اتبعت ومستني الهوست
@@ -174,6 +196,20 @@ class GameController extends ChangeNotifier {
   GameEvent? lastEvent;                 // آخر حدث (للأنيميشن)
   final List<TurnRecord> turns = [];    // كل الأدوار اللي اتلعبت (ساعة كل لاعب)
   bool clapOpen = false;                // مرحلة التصفيق مفتوحة (الضغطات بتتسجل)
+
+  // ---------------- الشات واللوبي ----------------
+  final ChatRoom chat = ChatRoom();     // الهوست: الرسايل المقبولة (هو المرجع)
+  final List<ChatMessage> chatView = []; // موبايل اللاعب: الرسايل اللي وصلت من الهوست
+  final Map<String, PendingChat> pendingChat = {}; // رسايلي اللي لسه ماتأكدتش
+  int chatUnread = 0;                   // رسايل جديدة ماتشافتش
+  bool chatOpen = false;                // نافذة الشات مفتوحة؟
+  String nickname = savedNickname;      // اسمي في الشات (لو مش ماسك لاعب)
+  final Map<String, LobbyMember> lobby = {}; // الموبايلات اللي في القعدة
+  final Set<String> kicked = {};        // موبايلات الهوست طردها
+  bool roomClosed = false;              // موبايل اللاعب: الهوست قفل القعدة
+  bool wasKicked = false;               // موبايل اللاعب: الهوست طردني
+  int _chatSeq = 0;
+  Timer? _pingTimer;
   final List<ClapTap> clapTaps = [];    // ضغطات التصفيق بالترتيب
   bool answerShown = false;             // الهوست كشف إجابة الكارت الحالي؟
   int clockOffset = 0;                  // موبايل اللاعب: فرق ساعته عن ساعة الهوست
@@ -302,6 +338,32 @@ class GameController extends ChangeNotifier {
   /// الكارت الحالي ليه إجابة؟
   bool get hasAnswer => currentRule?.answer != null;
 
+  /// حالة القعدة: lobby (لسه في الإعداد) / inGame / finished / closed
+  String get roomStatus {
+    if (room == null) return 'closed';
+    return switch (screen) { AppScreen.game => 'inGame', AppScreen.results => 'finished', _ => 'lobby' };
+  }
+
+  /// الشات متاح دلوقتي؟ (قعدة أونلاين + الأدمن مفعّله)
+  bool get chatAvailable => (room != null || chatForTest) && AppSettings.current.chatOnline;
+
+  /// للاختبارات: نعتبر إن فيه قعدة مفتوحة (من غير نت)
+  @visibleForTesting
+  bool chatForTest = false;
+
+  /// كل رسايل الشات اللي تتعرض (الهوست: المرجع، اللاعب: اللي وصل + رسايلي اللي لسه بتتبعت)
+  List<ChatMessage> get chatMessages => isViewer ? chatView : chat.messages;
+
+  /// اسمي في الشات: اسم اللاعب اللي ماسكه، أو الاسم اللي كتبته، أو "الهوست"
+  String get chatName {
+    if (isHost) return nickname.isNotEmpty ? nickname : 'Host';
+    final mine = myPlayerIndex;
+    if (mine != null && mine < players.length) return players[mine].name;
+    return nickname.isNotEmpty ? nickname : 'Guest';
+  }
+
+  ChatContext get _chatContext => screen == AppScreen.game || screen == AppScreen.results ? ChatContext.game : ChatContext.lobby;
+
   /// شكل ضهر الكارت الجاي: تصنيفه (عادي/أكشن) ولونه الخاص لو الأدمن غيّره
   CardCategory get nextCategory {
     if (isViewer) {
@@ -375,11 +437,41 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// أكتر من موبايل: الجهاز ده هو الهوست (القعدة بتتفتح لما اللعبة تبدأ)
+  /// أكتر من موبايل: الجهاز ده هو الهوست. القعدة بتتفتح على طول (اللوبي)،
+  /// فاللاعيبة يقدروا يدخلوا ويتكلموا في الشات وإنت لسه بتكتب الأسامي
   void chooseMultiDevice() {
     multiDevice = true;
     screen = AppScreen.setup;
+    _openHostRoom();
     notifyListeners();
+  }
+
+  void _openHostRoom() {
+    if (room != null || !AppConfig.hasSupabase || !AppSettings.current.onlineEnabled) return;
+    chat.clear();
+    lobby.clear();
+    kicked.clear();
+    room = RoomService.host(
+      code: RoomService.newCode(),
+      onHello: _onHello,
+      onAction: handleRemoteAction,
+      onConnected: notifyListeners,
+    );
+  }
+
+  /// موبايل جديد دخل (أو رجع بعد ما فصل): نسجله في اللوبي ونبعتله الحالة والشات
+  void _onHello(Map<String, dynamic> hello) {
+    final device = hello['device'] as String?;
+    if (device != null && device.isNotEmpty && !kicked.contains(device)) {
+      lobby[device] = LobbyMember(_cleanName(hello['name']), nowMs);
+    }
+    _broadcastState(withChat: true);
+  }
+
+  static String _cleanName(Object? name) {
+    final text = name is String ? name.trim() : '';
+    if (text.isEmpty) return 'Guest';
+    return text.length > ChatRoom.nameMax ? text.substring(0, ChatRoom.nameMax) : text;
   }
 
   /// الدخول بكود القعدة من موبايل لاعب
@@ -392,7 +484,22 @@ class GameController extends ChangeNotifier {
     claims = {};
     players = [];
     screen = AppScreen.game;
-    room = RoomService.join(code: code.trim().toUpperCase(), onState: _applySnapshot);
+    roomClosed = false;
+    wasKicked = false;
+    chatView.clear();
+    pendingChat.clear();
+    chatUnread = 0;
+    room = RoomService.join(
+      code: code.trim().toUpperCase(),
+      onState: _applySnapshot,
+      onEvent: _onRoomEvent,
+      hello: {'device': deviceId, 'name': chatName},
+    );
+    // كل 20 ثانية بنقول للهوست إننا لسه موجودين (عشان يعرف مين متصل)
+    _pingTimer?.cancel();
+    _pingTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      room?.sendAction({'type': 'ping', 'device': deviceId, 'name': chatName});
+    });
     notifyListeners();
   }
 
@@ -400,7 +507,16 @@ class GameController extends ChangeNotifier {
   void goHome() {
     _cancelTimers();
     if (isViewer) room?.sendAction({'type': 'release', 'device': deviceId});
+    // الهوست: نقول لكل اللاعيبة إن القعدة اتقفلت قبل ما نقفلها
+    if (isHost && room != null) room!.sendState({'screen': 'closed'});
+    _pingTimer?.cancel();
     _closeRoom();
+    chat.clear();
+    chatView.clear();
+    pendingChat.clear();
+    lobby.clear();
+    chatOpen = false;
+    chatUnread = 0;
     isViewer = false;
     multiDevice = false;
     myPlayerIndex = null;
@@ -457,15 +573,8 @@ class GameController extends ChangeNotifier {
     claims.removeWhere((index, _) => index >= players.length);
     _addLog(UiText.logStart, {'mode': mode.name});
     screen = AppScreen.game;
-    // أكتر من موبايل: نفتح القعدة أونلاين (مرة واحدة، وبتفضل مفتوحة لو لعبتوا تاني)
-    if (multiDevice && room == null && AppConfig.hasSupabase) {
-      room = RoomService.host(
-        code: RoomService.newCode(),
-        onHello: _broadcastState,
-        onAction: handleRemoteAction,
-        onConnected: notifyListeners,
-      );
-    }
+    // أكتر من موبايل: القعدة بتبقى مفتوحة من اللوبي (ولو لسه مااتفتحتش نفتحها)
+    if (multiDevice) _openHostRoom();
     notifyListeners();
   }
 
@@ -1086,8 +1195,29 @@ class GameController extends ChangeNotifier {
     final device = action['device'] as String?;
     final player = (action['player'] as num?)?.toInt();
     if (device == null || device.isEmpty) return;
+    if (kicked.contains(device)) return; // موبايل مطرود: أي طلب منه بيتجاهل
+    // أي طلب = الموبايل ده لسه متصل
+    final member = lobby[device];
+    if (member != null) {
+      member.lastSeen = nowMs;
+    } else if (type != 'release') {
+      lobby[device] = LobbyMember(_cleanName(action['name']), nowMs);
+    }
 
     switch (type) {
+      case 'ping':
+        lobby[device] = LobbyMember(_cleanName(action['name'] ?? lobby[device]?.name), nowMs);
+        break;
+      case 'chat':
+        _receiveChat(action, device);
+        break;
+      case 'chatDelete':
+        final id = action['id'];
+        if (id is String && chat.delete(id, byDevice: device, byHost: false)) {
+          room?.sendEvent('chatDel', {'id': id});
+          notifyListeners();
+        }
+        break;
       case 'claim':
         if (player == null || player < 0 || player >= players.length) return;
         final owner = claims[player];
@@ -1101,6 +1231,7 @@ class GameController extends ChangeNotifier {
         break;
       case 'release':
         claims.removeWhere((_, d) => d == device);
+        lobby.remove(device);
         notifyListeners();
         break;
       case 'draw':
@@ -1122,6 +1253,215 @@ class GameController extends ChangeNotifier {
   }
 
   // =================================================================
+  // الشات: الهوست بيقبل/يرفض، واللاعيبة بيبعتوا ويستقبلوا
+  // =================================================================
+
+  /// بعت رسالة (كلام أو صوت). الهوست بيضيفها على طول، واللاعب بيبعتها للهوست.
+  /// بترجع سبب الرفض لو اترفضت عند الهوست نفسه.
+  ChatRejection? sendChat(String text, {VoiceAttachment? voice}) {
+    final settings = AppSettings.current;
+    final clean = text.trim();
+    if (clean.isEmpty && voice == null) return ChatRejection.empty;
+    if (clean.length > settings.chatMaxLength) return ChatRejection.tooLong;
+    final id = '$deviceId-${DateTime.now().millisecondsSinceEpoch}-${_chatSeq++}';
+    if (isHost) {
+      final rejected = chat.accept(
+        id: id,
+        device: deviceId,
+        name: chatName,
+        text: clean,
+        voice: voice,
+        context: _chatContext,
+        now: nowMs,
+        enabled: chatAvailable,
+        maxLength: settings.chatMaxLength,
+        perMinute: settings.chatPerMinute,
+        fromHost: true,
+      );
+      if (rejected == null) {
+        room?.sendEvent('chat', chat.messages.last.toJson());
+        notifyListeners();
+      }
+      return rejected;
+    }
+    final pending = PendingChat(id: id, text: clean, voice: voice);
+    pendingChat[id] = pending;
+    _sendPending(pending);
+    notifyListeners();
+    return null;
+  }
+
+  /// إعادة إرسال رسالة فشلت (بنفس الـ id، فالهوست مابيكررهاش)
+  void retryChat(String id) {
+    final pending = pendingChat[id];
+    if (pending == null) return;
+    pending.failed = null;
+    _sendPending(pending);
+    notifyListeners();
+  }
+
+  void discardChat(String id) {
+    pendingChat.remove(id);
+    notifyListeners();
+  }
+
+  void _sendPending(PendingChat pending) {
+    room?.sendAction({
+      'type': 'chat',
+      'device': deviceId,
+      'name': chatName,
+      'id': pending.id,
+      'text': pending.text,
+      if (pending.voice != null) 'voice': pending.voice!.toJson(),
+    });
+    // لو الهوست مردش في 6 ثواني: الرسالة "ماوصلتش" وتقدر تعيد
+    pending.timer?.cancel();
+    pending.timer = Timer(const Duration(seconds: 6), () {
+      if (pendingChat.containsKey(pending.id) && pending.failed == null) {
+        pending.failed = ChatRejection.invalid;
+        notifyListeners();
+      }
+    });
+  }
+
+  /// الهوست: رسالة جاية من موبايل لاعب
+  void _receiveChat(Map<String, dynamic> action, String device) {
+    final id = action['id'];
+    final text = action['text'];
+    if (id is! String) return;
+    final settings = AppSettings.current;
+    final rejected = chat.accept(
+      id: id,
+      device: device,
+      name: lobby[device]?.name ?? _cleanName(action['name']),
+      text: text is String ? text : '',
+      voice: VoiceAttachment.fromJson(action['voice']),
+      context: _chatContext,
+      now: nowMs,
+      enabled: chatAvailable,
+      maxLength: settings.chatMaxLength,
+      perMinute: settings.chatPerMinute,
+    );
+    if (rejected != null) {
+      room?.sendEvent('chatReject', {'id': id, 'device': device, 'reason': rejected.name});
+      return;
+    }
+    // الرسالة المقبولة (أو المكررة اللي اتقبلت قبل كده) بتتبعت للكل
+    final message = chat.messages.lastWhere((m) => m.id == id, orElse: () => chat.messages.last);
+    room?.sendEvent('chat', message.toJson());
+    if (!chatOpen) chatUnread++;
+    notifyListeners();
+  }
+
+  /// مسح رسالة: صاحبها أو الهوست
+  void deleteChat(String id) {
+    if (isHost) {
+      if (chat.delete(id, byDevice: deviceId, byHost: true)) {
+        room?.sendEvent('chatDel', {'id': id});
+        notifyListeners();
+      }
+    } else {
+      room?.sendAction({'type': 'chatDelete', 'device': deviceId, 'id': id});
+    }
+  }
+
+  /// الهوست: كتم/فك كتم موبايل في الشات
+  void toggleMute(String device) {
+    if (isViewer) return;
+    if (!chat.muted.remove(device)) chat.muted.add(device);
+    notifyListeners();
+  }
+
+  /// الهوست: طرد موبايل من القعدة (بيفقد اللاعب اللي ماسكه ومايقدرش يبعت حاجة تاني)
+  void kick(String device) {
+    if (isViewer || device == deviceId) return;
+    kicked.add(device);
+    lobby.remove(device);
+    claims.removeWhere((_, d) => d == device);
+    notifyListeners();
+  }
+
+  /// فتح/قفل نافذة الشات (والرسايل بتبقى "اتقرت")
+  void setChatOpen(bool open) {
+    chatOpen = open;
+    if (open) chatUnread = 0;
+    notifyListeners();
+  }
+
+  void setNickname(String name) {
+    nickname = _cleanName(name);
+    if (nickname == 'Guest') nickname = '';
+    notifyListeners();
+  }
+
+  /// موبايل اللاعب: حدث صغير من الهوست
+  void _onRoomEvent(String event, Map<String, dynamic> data) {
+    switch (event) {
+      case 'chat':
+        final message = ChatMessage.fromJson(data);
+        if (message == null) return;
+        pendingChat.remove(message.id)?.timer?.cancel();
+        if (chatView.any((m) => m.id == message.id)) return; // وصلت قبل كده
+        chatView.add(message);
+        if (chatView.length > ChatRoom.historySize) chatView.removeAt(0);
+        if (!chatOpen && message.device != deviceId) chatUnread++;
+        break;
+      case 'chatDel':
+        chatView.removeWhere((m) => m.id == data['id']);
+        break;
+      case 'chatReject':
+        if (data['device'] != deviceId) return;
+        final pending = pendingChat[data['id']];
+        if (pending == null) return;
+        pending.timer?.cancel();
+        pending.failed = ChatRejection.values.firstWhere((r) => r.name == data['reason'], orElse: () => ChatRejection.invalid);
+        break;
+      default:
+        return;
+    }
+    notifyListeners();
+  }
+
+  /// موبايل اللاعب: اللوبي والشات من الحالة
+  void _applyLobby(Map<String, dynamic> s) {
+    final rawLobby = s['lobby'];
+    if (rawLobby is List) {
+      lobby
+        ..clear()
+        ..addEntries([
+          for (final m in rawLobby)
+            if (m is Map && m['d'] is String)
+              MapEntry(m['d'] as String, LobbyMember(_cleanName(m['n']), (m['on'] == true) ? nowMs : 0, muted: m['m'] == true)),
+        ]);
+    }
+    final rawKicked = s['kicked'];
+    if (rawKicked is List && rawKicked.contains(deviceId)) {
+      wasKicked = true;
+      viewerHasState = false;
+      room?.close();
+    }
+    final history = s['chat'];
+    if (history is List) {
+      // دمج: الرسايل اللي عندي + اللي جاية (من غير تكرار)، بالترتيب
+      final byId = {for (final m in chatView) m.id: m};
+      for (final raw in history) {
+        final m = ChatMessage.fromJson(raw);
+        if (m != null) {
+          byId[m.id] = m;
+          pendingChat.remove(m.id)?.timer?.cancel();
+        }
+      }
+      chatView
+        ..clear()
+        ..addAll(byId.values.toList()..sort((a, b) => a.at.compareTo(b.at)));
+    }
+  }
+
+  /// للاختبارات: حدث من الهوست وصل للموبايل
+  @visibleForTesting
+  void onRoomEventForTest(String event, Map<String, dynamic> data) => _onRoomEvent(event, data);
+
+  // =================================================================
   // مزامنة الموبايلات (أكتر من موبايل)
   // =================================================================
 
@@ -1132,7 +1472,12 @@ class GameController extends ChangeNotifier {
     if (room != null && room!.isHost) _broadcastState();
   }
 
-  void _broadcastState() => room?.sendState(_toSnapshot());
+  void _broadcastState({bool withChat = false}) {
+    final snapshot = _toSnapshot();
+    // الشات القديم بيتبعت بس لما حد يدخل/يرجع (مش مع كل تغيير، عشان الرسايل تفضل صغيرة وسريعة)
+    if (withChat) snapshot['chat'] = [for (final m in chat.messages) m.toJson()];
+    room?.sendState(snapshot);
+  }
 
   /// نسخة الحالة اللي بتتبعت للموبايلات (للاختبارات)
   @visibleForTesting
@@ -1172,6 +1517,12 @@ class GameController extends ChangeNotifier {
       'bombEnds': bombEndsAt?.millisecondsSinceEpoch,
       'event': lastEvent?.toJson(),
       'claims': {for (final e in claims.entries) '${e.key}': e.value},
+      'status': roomStatus,
+      'lobby': [
+        for (final e in lobby.entries)
+          {'d': e.key, 'n': e.value.name, 'on': nowMs - e.value.lastSeen < 50000, if (chat.muted.contains(e.key)) 'm': true},
+      ],
+      'kicked': kicked.toList(),
       // شكل ضهر الكارت الجاي (من غير ما نكشف هو أنهي كارت)
       'next': next == null
           ? null
@@ -1194,6 +1545,18 @@ class GameController extends ChangeNotifier {
     final oldScreen = screen;
 
     final screenName = s['screen'] as String? ?? 'waiting';
+    if (screenName == 'closed') {
+      roomClosed = true;
+      viewerHasState = false;
+      notifyListeners();
+      return;
+    }
+    // اللوبي والشات بيتحدثوا حتى والهوست لسه في الإعداد
+    _applyLobby(s);
+    if (wasKicked) {
+      notifyListeners();
+      return;
+    }
     if (screenName == 'waiting') {
       viewerHasState = false;
       screen = AppScreen.game;
@@ -1278,6 +1641,7 @@ class GameController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _pingTimer?.cancel();
     _cancelTimers();
     _pendingTimer?.cancel();
     _closeRoom();

@@ -17,6 +17,8 @@ import '../theme.dart';
 import '../widgets/card_face.dart';
 import '../widgets/common.dart';
 import 'card_library_screen.dart';
+import 'asset_library_screen.dart';
+import 'online_settings_screen.dart';
 
 // =================================================================
 // قائمة الأنماط
@@ -149,6 +151,20 @@ class _AdminScreenState extends State<AdminScreen> {
                       await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CardLibraryScreen(game: game)));
                       if (mounted) setState(() {});
                     },
+                  ),
+                  const SizedBox(height: 12),
+                  // مكتبة الصور (أيقونات البيكسل + اللي بترفعه)
+                  BrutalButton(
+                    label: '🖼 ${game.t(UiText.assetLibrary)}',
+                    color: AppColors.purple,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AssetLibraryScreen(game: game))),
+                  ),
+                  const SizedBox(height: 12),
+                  // إعدادات الأونلاين والشات والرسايل الصوتية
+                  BrutalButton(
+                    label: '🌐 ${game.t(UiText.onlineSettings)}',
+                    color: AppColors.blue,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OnlineSettingsScreen(game: game))),
                   ),
                   const SizedBox(height: 12),
                   BrutalButton(label: '+ ${game.t(UiText.newMode)}', onTap: () => _openEditor(null)),
@@ -388,14 +404,20 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
   }
 
   /// تغيير الصورة: القديمة بتتمسح من Storage بعد ما الحفظ ينجح بس
-  void _replaceImage(String? url) {
+  void _replaceImage(String? url, {bool uploaded = true}) {
     final old = _image;
     if (old != null && old != _originalImage && _newUploads.contains(old)) {
       StorageService.deleteByUrl(old); // صورة اترفعت دلوقتي واتغيرت قبل الحفظ
       _newUploads.remove(old);
     }
-    if (url != null) _newUploads.add(url);
+    if (url != null && uploaded) _newUploads.add(url);
     setState(() => _image = url);
+  }
+
+  /// صورة النمط من مكتبة الصور (من غير رفع تاني)
+  Future<void> _pickFromLibrary() async {
+    final ref = await pickLibraryAsset(context, game);
+    if (ref != null && mounted) _replaceImage(ref, uploaded: false);
   }
 
   /// هل الكروت الزيادة سليمة؟ (ليها اسم وعنوان، ومفيش اسم متكرر أو زي كارت من الـ 13)
@@ -520,6 +542,11 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                                         height: 40,
                                         fontSize: 14,
                                       ),
+                                if (!_uploading)
+                                  TextButton(
+                                    onPressed: _pickFromLibrary,
+                                    child: Text(game.t(UiText.fromLibrary), style: const TextStyle(fontWeight: FontWeight.w800)),
+                                  ),
                                 if (_image != null && !_uploading)
                                   TextButton(
                                     onPressed: () => _replaceImage(null),

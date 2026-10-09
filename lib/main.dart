@@ -27,6 +27,8 @@ import 'screens/game_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/results_screen.dart';
 import 'screens/setup_screen.dart';
+import 'services/app_settings.dart';
+import 'services/device_identity.dart';
 import 'services/mode_store.dart';
 import 'services/sound_service.dart';
 import 'theme.dart';
@@ -47,7 +49,9 @@ Future<void> main() async {
   }
 
   // تحميل الأنماط اللي الأدمن ضافها + الوضع الغامق/الفاتح المحفوظ
-  await Future.wait([ModeStore.load(), AppTheme.load()]);
+  // + إعدادات الأدمن (الأونلاين والشات) + رقم الموبايل واسمه في الشات
+  await Future.wait([ModeStore.load(), AppTheme.load(), AppSettings.load(), DeviceIdentity.load()]);
+  AppSettings.listen();
 
   // تحميل الأصوات في الخلفية (من غير ما نأخر فتح التطبيق)
   SoundService.instance.preload();
@@ -101,6 +105,7 @@ class _KartaAppState extends State<KartaApp> {
   void initState() {
     super.initState();
     AppTheme.dark.addListener(_themeChanged);
+    AppSettings.changes.addListener(_settingsChanged);
     // لو التطبيق اتفتح من رابط الـ QR (فيه ?room=CODE) ندخل القعدة على طول كمتفرج
     final code = kIsWeb ? Uri.base.queryParameters['room'] : null;
     if (code != null && code.isNotEmpty && AppConfig.hasSupabase) game.joinRoom(code);
@@ -123,6 +128,9 @@ class _KartaAppState extends State<KartaApp> {
     }
   }
 
+  /// الأدمن غيّر إعدادات الأونلاين/الشات: نعيد رسم الشاشة
+  void _settingsChanged() => game.modesChanged();
+
   /// الوضع الغامق/الفاتح اتغير: نعيد رسم كل الشاشات بالألوان الجديدة
   /// (من غير ما نفقد أي حالة: الأسامي اللي اتكتبت، الكارت الحالي، تعديلات الأدمن...)
   void _themeChanged() {
@@ -138,6 +146,7 @@ class _KartaAppState extends State<KartaApp> {
   @override
   void dispose() {
     AppTheme.dark.removeListener(_themeChanged);
+    AppSettings.changes.removeListener(_settingsChanged);
     game.dispose();
     super.dispose();
   }

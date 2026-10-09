@@ -4,6 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:karta/game/game_controller.dart';
 import 'package:karta/screens/admin_screen.dart';
+import 'package:karta/screens/asset_library_screen.dart';
+import 'package:karta/screens/online_settings_screen.dart';
+import 'package:karta/screens/voice_library_screen.dart';
+import 'package:karta/widgets/chat_panel.dart';
 import 'package:karta/screens/card_library_screen.dart';
 import 'package:karta/screens/game_screen.dart';
 import 'package:karta/screens/help_screen.dart';
@@ -24,6 +28,10 @@ void main() {
     'help': (g) => HelpScreen(game: g),
     'admin': (g) => AdminScreen(game: g),
     'library': (g) => CardLibraryScreen(game: g),
+    'assets': (g) => AssetLibraryScreen(game: g),
+    'online settings': (g) => OnlineSettingsScreen(game: g),
+    'voice library': (g) => VoiceLibraryScreen(game: g),
+    'chat': (g) => Scaffold(body: ChatPanel(game: g..chatForTest = true)),
   };
 
   for (final dark in [false, true]) {

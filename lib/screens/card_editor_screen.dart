@@ -19,6 +19,7 @@ import '../services/storage_service.dart';
 import '../theme.dart';
 import '../widgets/card_face.dart';
 import '../widgets/common.dart';
+import 'asset_library_screen.dart';
 import 'card_library_screen.dart';
 
 class CardEditorScreen extends StatefulWidget {
@@ -267,6 +268,21 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
       }
     });
     _snack(game.t(UiText.uploaded));
+  }
+
+  /// اختيار صورة من المكتبة (للأيقونة أو الخلفية)
+  Future<void> _fromLibrary(String kind) async {
+    final ref = await pickLibraryAsset(context, game);
+    if (ref == null || !mounted) return;
+    setState(() {
+      if (kind == 'icon') {
+        _discardUnsaved(_iconUrl, _originalIcon);
+        _iconUrl = ref;
+      } else {
+        _discardUnsaved(_artworkUrl, _originalArtwork);
+        _artworkUrl = ref;
+      }
+    });
   }
 
   /// صورة اترفعت في الجلسة دي واتغيرت قبل الحفظ: نمسحها
@@ -621,6 +637,9 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                 child: imageFromRef(_iconUrl!, fit: BoxFit.contain),
               ),
             Expanded(child: _uploadButton('icon', UiText.uploadIcon)),
+            const SizedBox(width: 6),
+            // أيقونة من مكتبة الصور (بيكسل ارت أو صورة مرفوعة قبل كده) من غير رفع تاني
+            TextButton(onPressed: () => _fromLibrary('icon'), child: Text(game.t(UiText.fromLibrary), style: const TextStyle(fontWeight: FontWeight.w800))),
             if (_iconUrl != null)
               TextButton(
                 onPressed: () => setState(() {
@@ -664,6 +683,8 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
                 child: imageFromRef(_artworkUrl!),
               ),
             Expanded(child: _uploadButton('artwork', UiText.uploadArtwork)),
+            const SizedBox(width: 6),
+            TextButton(onPressed: () => _fromLibrary('artwork'), child: Text(game.t(UiText.fromLibrary), style: const TextStyle(fontWeight: FontWeight.w800))),
             if (_artworkUrl != null)
               TextButton(
                 onPressed: () => setState(() {

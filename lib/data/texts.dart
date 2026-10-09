@@ -431,4 +431,97 @@ class UiText {
     'الإجابة بتفضل مخفية في اللعب لحد ما الهوست يدوس "اكشف الإجابة"، وبعدها بتظهر لكل اللاعيبة.',
     'El egaba betfdal makhfeya fel le3b le7ad ma el host ydoos "ekshef el egaba", w ba3daha btezhar le kol el la3eeba.',
   );
+
+  // ---------- الشات والرسايل الصوتية ----------
+  static const chat = LText('الشات', 'El chat');
+  static const lobbyChat = LText('شات الانتظار', 'Chat el entezar');
+  static const gameChat = LText('شات اللعب', 'Chat el le3b');
+  static const chatHint = LText('اكتب رسالة...', 'Ekteb resala...');
+  static const chatEmpty = LText('لسه محدش كتب حاجة. ابدأ إنت 👋', 'Lessa ma7adesh katab 7aga. Ebda2 enta 👋');
+  static const chatOff = LText('الشات مقفول من الأدمن', 'El chat ma2fool men el admin');
+  static const sending = LText('بيتبعت...', 'Byetba3at...');
+  static const notDelivered = LText('ماوصلتش', 'Mawsaletsh');
+  static const retry = LText('إعادة', 'E3ada');
+  static const discard = LText('امسح', 'Emsa7');
+  static const rejectTooFast = LText('بالراحة! استنى شوية قبل الرسالة الجاية', 'Bel ra7a! Estanna shwaya');
+  static const rejectMuted = LText('الهوست كتمك في الشات', 'El host katamak fel chat');
+  static const rejectTooLong = LText('الرسالة طويلة أوي', 'El resala taweela awy');
+  static const rejectOff = LText('الشات مقفول', 'El chat ma2fool');
+  static const youWord = LText('إنت', 'enta');
+  static const roomPeople = LText('اللي في القعدة', 'Elly fel 2a3da');
+  static const host = LText('الهوست', 'El host');
+  static const online = LText('متصل', 'Motassel');
+  static const offline = LText('فصل', 'Fasal');
+  static const mute = LText('كتم', 'Katm');
+  static const unmute = LText('فك الكتم', 'Fok el katm');
+  static const kick = LText('طرد', 'Tard');
+  static const kickConfirm = LText('تطرد {name} من القعدة؟', 'Tetrod {name} men el 2a3da?');
+  static const kickedOut = LText('الهوست طلّعك من القعدة', 'El host tala3ak men el 2a3da');
+  static const roomClosedMsg = LText('الهوست قفل القعدة', 'El host 2afal el 2a3da');
+  static const yourName = LText('اسمك في الشات', 'Esmak fel chat');
+  static const lobbyTitle = LText('القعدة مفتوحة', 'El 2a3da maftoo7a');
+  static const lobbyHint = LText(
+    'ابعت الكود أو الـ QR للاعيبة يدخلوا ويتكلموا في الشات وإنت بتكتب الأسامي.',
+    'Eb3at el code aw el QR lel la3eeba yedkhlo w yetkallemo fel chat w enta btekteb el asamy.',
+  );
+  static const nobodyYet = LText('لسه محدش دخل', 'Lessa ma7adesh dakhal');
+  static const record = LText('سجّل رسالة صوتية', 'Sagel resala sawtya');
+  static const recording = LText('بيسجل...', 'Bysaggel...');
+  static const stopRecording = LText('وقّف', 'Wa22af');
+  static const sendVoice = LText('ابعت', 'Eb3at');
+  static const uploadingVoice = LText('بيترفع...', 'Byetrefe3...');
+  static const voiceOff = LText('الرسايل الصوتية مقفولة', 'El rasayel el sawtya ma2foola');
+  static const voiceNote = LText('رسالة صوتية', 'Resala sawtya');
+  static const saveToLibrary = LText('احفظ في مكتبتي', 'Ehfaz fe maktabty');
+  static const savedToLibrary = LText('اتحفظت في مكتبتك', 'Et7afazet fe maktabtak');
+  static const voiceLibrary = LText('رسايلي الصوتية', 'Rasayly el sawtya');
+  static const publicVoices = LText('رسايل عامة', 'Rasayel 3amma');
+  static const noVoices = LText('مفيش رسايل محفوظة لسه', 'Mafeesh rasayel mahfooza lessa');
+  static const makePublic = LText('خليها عامة', 'Khalleeha 3amma');
+  static const makePrivate = LText('خليها خاصة', 'Khalleeha khassa');
+  static const pendingReview = LText('مستنية موافقة الأدمن', 'Mestanneya mowaf2et el admin');
+  static const rejected = LText('اترفضت', 'Etrafadet');
+  static const rename = LText('غيّر الاسم', 'Ghayyar el esm');
+  static const sendToChat = LText('ابعتها في الشات', 'Eb3atha fel chat');
+  static const sentToChat = LText('اتبعتت في الشات', 'Etba3tet fel chat');
+  static const noRoomForVoice = LText('ادخل قعدة أونلاين الأول عشان تبعتها', 'Odkhol 2a3da online el awel');
+  static const approve = LText('وافق', 'Wafe2');
+  static const reject = LText('ارفض', 'Erfod');
+  static const deleteLabel = LText('امسح', 'Emsa7');
+  static const micDenied = LText('لازم تسمح للمايك عشان تسجل', 'Lazem tesma7 lel mic 3ashan tsaggel');
+
+  // ---------- إعدادات الأونلاين (الأدمن) ----------
+  static const onlineSettings = LText('إعدادات الأونلاين والشات', 'E3dadat el online wel chat');
+  static const onlineEnabled = LText('وضع أكتر من موبايل (أونلاين)', 'Wad3 aktar men mobile (online)');
+  static const chatOnlineLabel = LText('الشات في القعدات الأونلاين', 'El chat fel 2a3dat el online');
+  static const chatOfflineNote = LText(
+    'في وضع موبايل واحد مفيش شات: كلكم على نفس الموبايل، فمفيش حد تبعتله.',
+    'Fe wad3 mobile wa7ed mafeesh chat: kollokom 3ala nafs el mobile.',
+  );
+  static const chatMaxLength = LText('أقصى طول للرسالة', 'A2sa tool lel resala');
+  static const chatPerMinute = LText('أقصى رسايل في الدقيقة لكل لاعب', 'A2sa rasayel fel de2ee2a');
+  static const voiceOnlineLabel = LText('الرسايل الصوتية في الأونلاين', 'El rasayel el sawtya fel online');
+  static const voiceMaxSeconds = LText('أقصى مدة للتسجيل (ثانية)', 'A2sa modda (sanya)');
+  static const voiceMaxKB = LText('أقصى حجم (KB)', 'A2sa 7agm (KB)');
+  static const voiceAllowSave = LText('اللاعيبة يحفظوا رسايلهم', 'El la3eeba ye7fazo rasayelhom');
+  static const voiceAllowPublic = LText('يقدروا يخلوها عامة', 'Ye2daro ykhallooha 3amma');
+  static const voiceModeration = LText('الرسايل العامة محتاجة موافقتي', 'El rasayel el 3amma me7taga mowaf2ty');
+  static const reviewVoices = LText('مراجعة الرسايل العامة', 'Moraga3et el rasayel el 3amma');
+  static const formatsNote = LText('الصيغ: WebM/Opus على الويب و M4A/AAC على الموبايل (أصغر حجم).', 'El seyagh: WebM/Opus 3al web w M4A/AAC 3al mobile.');
+
+  // ---------- مكتبة الصور ----------
+  static const assetLibrary = LText('مكتبة الصور', 'Maktabet el sowar');
+  static const fromLibrary = LText('🖼 من المكتبة', '🖼 Men el maktaba');
+  static const assetName = LText('الاسم', 'El esm');
+  static const assetTags = LText('كلمات للبحث (افصل بينها بفاصلة)', 'Kalemat lel ba7s (bfasla)');
+  static const builtInAsset = LText('جاهزة في التطبيق', 'Gahza fel app');
+  static const uploadedAsset = LText('مرفوعة', 'Marfoo3a');
+  static const usedIn = LText('مستخدمة في', 'Mostakhdama fe');
+  static const editDetails = LText('تعديل الاسم والتصنيف', 'Ta3deel el esm wel tasneef');
+  static const replaceImage = LText('استبدال الصورة', 'Estebdal el soora');
+  static const deleted = LText('اتمسحت', 'Etmasa7et');
+  static const upload = LText('رفع', 'Raf3');
+  static const search = LText('بحث...', 'Ba7s...');
+  static const all = LText('الكل', 'El kol');
+  static const noResults = LText('مفيش نتايج', 'Mafeesh nataye2');
 }

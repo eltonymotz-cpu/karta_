@@ -12,6 +12,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../data/game_modes.dart';
+import '../data/pixel_assets.dart';
 import '../data/texts.dart';
 import '../theme.dart';
 import 'common.dart';
@@ -19,6 +20,11 @@ import 'common.dart';
 /// صورة من رابط (Supabase Storage) أو من base64 (الصور القديمة)
 Widget imageFromRef(String ref, {BoxFit fit = BoxFit.cover, double? width, double? height}) {
   Widget broken() => SizedBox(width: width, height: height, child: Icon(Icons.broken_image, color: AppColors.muted));
+  // أيقونة بيكسل جاهزة من مكتبة الصور: بتتكبر "بيكسل بيكسل" من غير تنعيم عشان تفضل حادة
+  if (ref.startsWith(assetPrefix)) {
+    return Image.asset(assetPath(ref), fit: fit, width: width, height: height, filterQuality: FilterQuality.none,
+        errorBuilder: (_, _, _) => broken());
+  }
   if (ref.startsWith('http')) {
     return Image.network(
       ref,

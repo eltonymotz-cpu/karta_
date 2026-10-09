@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../data/game_modes.dart';
+import '../data/pixel_assets.dart';
 import '../data/texts.dart';
 import '../game/game_controller.dart';
 import '../theme.dart';
@@ -156,7 +157,9 @@ class ModeIcon extends StatelessWidget {
       // الصورة يا رابط (Supabase Storage) يا base64 (الصور القديمة)
       child: image == null
           ? Text(mode.emoji, style: TextStyle(fontSize: size * 0.5))
-          : image.startsWith('http')
+          : image.startsWith(assetPrefix)
+              ? Image.asset(assetPath(image), width: size, height: size, fit: BoxFit.contain, filterQuality: FilterQuality.none)
+              : image.startsWith('http')
               ? Image.network(image, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true,
                   errorBuilder: (_, _, _) => Text(mode.emoji, style: TextStyle(fontSize: size * 0.5)))
               : Image.memory(base64Decode(image), width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true),

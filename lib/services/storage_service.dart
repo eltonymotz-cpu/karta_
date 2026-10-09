@@ -90,9 +90,11 @@ class StorageService {
 
   /// مسح صورة قديمة (لو كانت مرفوعة على الـ bucket بتاعنا). أي خطأ بيتجاهل
   /// عشان مسح صورة قديمة مايبوّظش حفظ الكارت.
-  static Future<void> deleteByUrl(String? url) async {
+  static Future<void> deleteByUrl(String? url, {bool library = false}) async {
     final path = pathFromUrl(url);
     if (path == null || !AppConfig.hasSupabase) return;
+    // صور مكتبة الصور مشتركة بين كذا كارت: مابتتمسحش غير من شاشة المكتبة نفسها
+    if (path.startsWith('library/') && !library) return;
     try {
       await Supabase.instance.client.storage.from(bucket).remove([path]);
     } catch (_) {}
