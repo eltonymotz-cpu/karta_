@@ -507,6 +507,11 @@ class UiText {
   static const voiceAllowPublic = LText('يقدروا يخلوها عامة', 'Ye2daro ykhallooha 3amma');
   static const voiceModeration = LText('الرسايل العامة محتاجة موافقتي', 'El rasayel el 3amma me7taga mowaf2ty');
   static const reviewVoices = LText('مراجعة الرسايل العامة', 'Moraga3et el rasayel el 3amma');
+  static const nothingSavedNote = LText(
+    'مفيش حاجة بتتحفظ: الشات والرسايل الصوتية بيتبعتوا جوه القعدة على طول، ومابيترفعوش على أي سيرفر، وبيتمسحوا أول ما اللعبة تتقفل.',
+    'Mafeesh 7aga betet7efez: el chat wel rasayel el sawtya byetba3to gowa el 2a3da 3ala tool, w mabyetrefe3oosh 3ala ay server, w byetmes7o awel ma el le3ba tet2efel.',
+  );
+  static const voiceUnavailable = LText('🎤 الرسالة مش متاحة (اتبعتت قبل ما تدخل)', '🎤 El resala mesh meta7a');
   static const formatsNote = LText('الصيغ: WebM/Opus على الويب و M4A/AAC على الموبايل (أصغر حجم).', 'El seyagh: WebM/Opus 3al web w M4A/AAC 3al mobile.');
 
   // ---------- مكتبة الصور ----------

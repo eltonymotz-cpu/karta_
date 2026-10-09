@@ -5,12 +5,12 @@
 // - الرسالة اللي بتتبعت بتظهر "بيتبعت..." لحد ما الهوست يأكدها،
 //   ولو ماوصلتش بيظهر "إعادة" و"امسح"
 // - التسجيل: دوس المايك → بيسجل بعداد → وقّف → اسمع → ابعت أو امسح
+//   (الصوت بيتبعت جوه القعدة على طول، ومابيتحفظش في أي مكان)
 // - الهوست: يشوف مين في القعدة ويقدر يكتم أو يطرد، ويمسح أي رسالة
 // =================================================================
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../data/texts.dart';
@@ -18,7 +18,6 @@ import '../game/chat.dart';
 import '../game/game_controller.dart';
 import '../services/app_settings.dart';
 import '../services/voice_service.dart';
-import '../screens/voice_library_screen.dart';
 import '../theme.dart';
 import 'common.dart';
 
@@ -157,11 +156,11 @@ class _ChatPanelState extends State<ChatPanel> {
 
   Future<void> _stopRecording() async {
     _recTimer?.cancel();
-    final draft = await VoiceService.stop();
+    final (draft, error) = await VoiceService.stop();
     if (!mounted) return;
     if (draft == null) {
       setState(() => _rec = _RecState.idle);
-      return _snack('Recording failed');
+      return _snack(error ?? 'Recording failed');
     }
     setState(() {
       _draft = draft;
@@ -178,7 +177,7 @@ class _ChatPanelState extends State<ChatPanel> {
       return;
     }
     try {
-      await _preview.play(kIsWeb ? UrlSource(draft.localPath) : DeviceFileSource(draft.localPath));
+      await _preview.play(BytesSource(draft.bytes, mimeType: draft.mime)); // من الذاكرة
       setState(() => _previewPlaying = true);
     } catch (e) {
       _snack('$e');
@@ -200,25 +199,17 @@ class _ChatPanelState extends State<ChatPanel> {
     if (mounted) setState(() => _rec = _RecState.idle);
   }
 
-  /// الإرسال: بعد التأكيد بس بيترفع الملف
+  /// الإرسال (بعد التأكيد بس): الصوت نفسه بيتبعت جوه رسالة الشات
   Future<void> _sendVoice() async {
     final draft = _draft;
     if (draft == null) return;
     await _preview.stop();
-    setState(() {
-      _rec = _RecState.uploading;
-      _previewPlaying = false;
-    });
-    final result = await VoiceService.upload(draft);
+    final rejected = game.sendChat('', voice: VoiceAttachment.fromBytes(draft.bytes, draft.mime, draft.durationMs));
     if (!mounted) return;
-    if (result.error != null) {
-      setState(() => _rec = _RecState.preview); // التسجيل لسه موجود: يقدر يعيد
-      return _snack(result.error!);
-    }
-    final rejected = game.sendChat('', voice: VoiceAttachment(url: result.url!, durationMs: draft.durationMs, path: result.path));
-    if (rejected != null) _snack(_rejection(rejected));
+    if (rejected != null) return _snack(_rejection(rejected)); // التسجيل لسه موجود: يقدر يعيد
     setState(() {
       _draft = null;
+      _previewPlaying = false;
       _rec = _RecState.idle;
     });
   }
@@ -239,13 +230,6 @@ class _ChatPanelState extends State<ChatPanel> {
               child: Row(
                 children: [
                   Expanded(child: WindowBar(title: '💬 $title', color: AppColors.blue)),
-                  // مكتبة رسايلي الصوتية (أبعت منها تاني من غير رفع)
-                  if (AppSettings.current.voiceOnline && AppSettings.current.voiceAllowSave)
-                    IconButton(
-                      tooltip: game.t(UiText.voiceLibrary),
-                      icon: Icon(Icons.library_music, color: AppColors.ink),
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => VoiceLibraryScreen(game: game))),
-                    ),
                   // اللي في القعدة (والهوست بيقدر يكتم ويطرد)
                   IconButton(
                     tooltip: game.t(UiText.roomPeople),
@@ -426,7 +410,7 @@ class MessageBubble extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(message.text, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink)),
               ],
-              if (message.voice != null) VoiceMessagePlayer(game: game, voice: message.voice!, canSave: mine && message.voice!.path != null),
+              if (message.voice != null) VoiceMessagePlayer(game: game, voice: message.voice!),
             ],
           ),
         ),
@@ -480,12 +464,11 @@ class _PendingBubble extends StatelessWidget {
   }
 }
 
-/// مشغّل الرسالة الصوتية (تشغيل/إيقاف + المدة + حفظ في المكتبة لصاحبها)
+/// مشغّل الرسالة الصوتية (تشغيل/إيقاف + المدة). الصوت بيتشغل من الذاكرة على طول.
 class VoiceMessagePlayer extends StatefulWidget {
   final GameController game;
   final VoiceAttachment voice;
-  final bool canSave;
-  const VoiceMessagePlayer({super.key, required this.game, required this.voice, this.canSave = false});
+  const VoiceMessagePlayer({super.key, required this.game, required this.voice});
 
   @override
   State<VoiceMessagePlayer> createState() => _VoiceMessagePlayerState();
@@ -494,8 +477,6 @@ class VoiceMessagePlayer extends StatefulWidget {
 class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   AudioPlayer? _player;
   bool _playing = false;
-  bool _saving = false;
-  bool _saved = false;
 
   @override
   void dispose() {
@@ -512,7 +493,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
       if (_playing) {
         await player.pause();
       } else {
-        await player.play(UrlSource(widget.voice.url));
+        await player.play(BytesSource(widget.voice.bytes, mimeType: widget.voice.mime));
       }
       if (mounted) setState(() => _playing = !_playing);
     } catch (e) {
@@ -520,30 +501,12 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     }
   }
 
-  Future<void> _save() async {
-    final path = widget.voice.path;
-    if (path == null) return;
-    setState(() => _saving = true);
-    final error = await VoiceService.save(
-      path: path,
-      durationMs: widget.voice.durationMs,
-      title: '${widget.game.t(UiText.voiceNote)} ${_time(DateTime.now().millisecondsSinceEpoch)}',
-      ownerName: widget.game.chatName,
-      mime: path.endsWith('.m4a') ? 'audio/mp4' : 'audio/webm',
-    );
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      _saved = error == null;
-    });
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
-      content: Text(error ?? widget.game.t(UiText.savedToLibrary)),
-      backgroundColor: error == null ? AppColors.green : AppColors.red,
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
+    // اللي دخل متأخر بيشوف إن فيه رسالة صوتية، بس الصوت نفسه مابيتبعتش تاني
+    if (!widget.voice.available) {
+      return Text(widget.game.t(UiText.voiceUnavailable), style: TextStyle(fontSize: 12, color: AppColors.muted));
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -553,15 +516,6 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
           icon: Icon(_playing ? Icons.pause_circle : Icons.play_circle, color: AppColors.ink, size: 30),
         ),
         Text('🎤 ${_clock(widget.voice.durationMs)}', textDirection: TextDirection.ltr, style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.ink)),
-        if (widget.canSave && AppSettings.current.voiceAllowSave)
-          _saving
-              ? const Padding(padding: EdgeInsets.all(8), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
-              : IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: widget.game.t(UiText.saveToLibrary),
-                  onPressed: _saved ? null : _save,
-                  icon: Icon(_saved ? Icons.bookmark : Icons.bookmark_add_outlined, color: AppColors.ink, size: 20),
-                ),
       ],
     );
   }

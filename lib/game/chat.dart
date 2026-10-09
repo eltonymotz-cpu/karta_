@@ -8,26 +8,49 @@
 //   - نفس الرسالة مابتتكررش لو اتبعتت مرتين (كل رسالة ليها id)
 // الهوست بيبعت الرسالة المقبولة لكل اللي في القعدة، وبيحتفظ بآخر 80 رسالة
 // فاللي يفصل ويرجع بيلاقي الكلام القديم.
+// ⚠️ مفيش أي حاجة من الشات بتتحفظ: الرسايل في ذاكرة الموبايلات بس،
+//    وبتتمسح أول ما اللعبة تتقفل.
 // =================================================================
+import 'dart:convert';
+import 'dart:typed_data';
 
 /// مكان الرسالة: lobby = في الانتظار قبل اللعب، game = أثناء اللعب
 enum ChatContext { lobby, game }
 
-/// رسالة صوتية: رابط مؤقت للملف + مدته
+/// رسالة صوتية: الصوت نفسه (مضغوط) جوه الرسالة - مش رابط ومش ملف على سيرفر
 class VoiceAttachment {
-  final String url;
-  final int durationMs;
-  final String? path; // مكان الملف في Storage (عشان صاحبه يحفظه في مكتبته من غير رفع تاني)
-  const VoiceAttachment({required this.url, required this.durationMs, this.path});
+  static const allowedMimes = {'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/aac', 'audio/mpeg', 'audio/wav'};
+  static const maxDataLength = 240 * 1024; // حد قناة القعدة حوالي 250 KB
 
-  Map<String, dynamic> toJson() => {'url': url, 'ms': durationMs, if (path != null) 'path': path};
+  final String data;       // الصوت base64 (فاضي = مبقاش متاح، زي لما حد يدخل متأخر)
+  final String mime;
+  final int durationMs;
+  const VoiceAttachment({required this.data, required this.mime, required this.durationMs});
+
+  factory VoiceAttachment.fromBytes(Uint8List bytes, String mime, int durationMs) =>
+      VoiceAttachment(data: base64Encode(bytes), mime: mime, durationMs: durationMs);
+
+  bool get available => data.isNotEmpty;
+  Uint8List get bytes => base64Decode(data);
+
+  /// withData = false: من غير الصوت نفسه (لتاريخ الشات، عشان الرسالة تفضل صغيرة)
+  Map<String, dynamic> toJson({bool withData = true}) => {if (withData) 'b': data, 'mime': mime, 'ms': durationMs};
 
   static VoiceAttachment? fromJson(Object? json) {
     if (json is! Map) return null;
-    final url = json['url'];
+    final data = json['b'] ?? '';
+    final mime = json['mime'];
     final ms = json['ms'];
-    if (url is! String || !url.startsWith('https://') || ms is! num) return null;
-    return VoiceAttachment(url: url, durationMs: ms.toInt(), path: json['path'] as String?);
+    if (data is! String || mime is! String || ms is! num) return null;
+    if (!allowedMimes.contains(mime) || data.length > maxDataLength || ms <= 0 || ms > 120000) return null;
+    if (data.isNotEmpty) {
+      try {
+        base64Decode(data); // لازم يكون base64 سليم
+      } catch (_) {
+        return null;
+      }
+    }
+    return VoiceAttachment(data: data, mime: mime, durationMs: ms.toInt());
   }
 }
 
@@ -52,12 +75,12 @@ class ChatMessage {
     this.fromHost = false,
   });
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson({bool withVoiceData = true}) => {
         'id': id,
         'd': device,
         'n': name,
         if (text.isNotEmpty) 't': text,
-        if (voice != null) 'v': voice!.toJson(),
+        if (voice != null) 'v': voice!.toJson(withData: withVoiceData),
         'c': context.name,
         'at': at,
         if (fromHost) 'h': true,

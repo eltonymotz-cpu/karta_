@@ -12,7 +12,6 @@ import '../game/game_controller.dart';
 import '../services/app_settings.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
-import 'voice_library_screen.dart';
 
 class OnlineSettingsScreen extends StatefulWidget {
   final GameController game;
@@ -158,30 +157,11 @@ class _OnlineSettingsScreenState extends State<OnlineSettingsScreen> {
                           5,
                           (v) => _s = _s.copyWith(voiceMaxSeconds: v),
                         ),
-                        _stepper(
-                          game.t(UiText.voiceMaxKB),
-                          _s.voiceMaxKB,
-                          AppSettings.voiceKBRange,
-                          100,
-                          (v) => _s = _s.copyWith(voiceMaxKB: v),
-                        ),
                         Text(game.t(UiText.formatsNote), style: TextStyle(fontSize: 12, color: AppColors.muted)),
-                        _switch(game.t(UiText.voiceAllowSave), _s.voiceAllowSave, (v) => _s = _s.copyWith(voiceAllowSave: v)),
-                        _switch(
-                          game.t(UiText.voiceAllowPublic),
-                          _s.voiceAllowPublic,
-                          (v) => _s = _s.copyWith(voiceAllowPublic: v),
-                        ),
-                        _switch(game.t(UiText.voiceModeration), _s.voiceModeration, (v) => _s = _s.copyWith(voiceModeration: v)),
-                        const SizedBox(height: 8),
-                        BrutalButton(
-                          label: '🛡 ${game.t(UiText.reviewVoices)}',
-                          color: AppColors.paper,
-                          height: 46,
-                          fontSize: 14,
-                          onTap: () => Navigator.of(
-                            context,
-                          ).push(MaterialPageRoute(builder: (_) => VoiceLibraryScreen(game: game, adminReview: true))),
+                        const SizedBox(height: 6),
+                        Text(
+                          game.t(UiText.nothingSavedNote),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.green),
                         ),
                       ],
                     ),

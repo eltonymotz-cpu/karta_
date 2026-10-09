@@ -1,5 +1,6 @@
 // =================================================================
 // إعدادات اللعبة العامة اللي الأدمن بيغيّرها (الأونلاين + الشات + الرسايل الصوتية)
+// (دي إعدادات الأدمن بس - مفيش أي بيانات من القعدات نفسها بتتحفظ)
 // -----------------------------------------------------------------
 // - بتتحفظ في Supabase (جدول karta_settings، صف واحد id = 'global')
 // - نسخة منها بتتحفظ على الجهاز، فلو مفيش نت اللعبة بتشتغل بآخر إعدادات
@@ -24,11 +25,7 @@ class AppSettings {
 
   // ---------------- الرسايل الصوتية ----------------
   final bool voiceOnline;        // تسجيل رسايل صوتية في القعدات الأونلاين
-  final int voiceMaxSeconds;     // أقصى مدة للتسجيل
-  final int voiceMaxKB;          // أقصى حجم للملف
-  final bool voiceAllowSave;     // اللاعيبة يقدروا يحفظوا الرسايل في مكتبتهم
-  final bool voiceAllowPublic;   // يقدروا يخلوها عامة للكل
-  final bool voiceModeration;    // الرسايل العامة لازم الأدمن يوافق عليها
+  final int voiceMaxSeconds;     // أقصى مدة للتسجيل (الصوت بيتبعت جوه الرسالة ومابيتحفظش)
 
   const AppSettings({
     this.onlineEnabled = true,
@@ -36,18 +33,13 @@ class AppSettings {
     this.chatMaxLength = 300,
     this.chatPerMinute = 20,
     this.voiceOnline = true,
-    this.voiceMaxSeconds = 60,
-    this.voiceMaxKB = 1024,
-    this.voiceAllowSave = true,
-    this.voiceAllowPublic = true,
-    this.voiceModeration = true,
+    this.voiceMaxSeconds = 30,
   });
 
   /// الحدود المسموحة (الأدمن مايقدرش يحط قيمة برا المدى ده)
   static const chatLengthRange = (50, 1000);
   static const chatPerMinuteRange = (3, 60);
-  static const voiceSecondsRange = (5, 180);
-  static const voiceKBRange = (100, 2048); // الـ bucket نفسه أقصاه 2 ميجا
+  static const voiceSecondsRange = (5, 60); // أكتر من كده الرسالة تعدي حد قناة القعدة (حوالي 250 KB)
 
   /// الإعدادات الحالية (بتتحمل أول ما التطبيق يفتح)
   static AppSettings current = const AppSettings();
@@ -59,10 +51,6 @@ class AppSettings {
         'voice': {
           'online': voiceOnline,
           'maxSeconds': voiceMaxSeconds,
-          'maxKB': voiceMaxKB,
-          'allowSave': voiceAllowSave,
-          'allowPublic': voiceAllowPublic,
-          'moderation': voiceModeration,
         },
       };
 
@@ -84,10 +72,6 @@ class AppSettings {
       chatPerMinute: number(chat, 'perMinute', d.chatPerMinute, chatPerMinuteRange),
       voiceOnline: flag(voice, 'online', d.voiceOnline),
       voiceMaxSeconds: number(voice, 'maxSeconds', d.voiceMaxSeconds, voiceSecondsRange),
-      voiceMaxKB: number(voice, 'maxKB', d.voiceMaxKB, voiceKBRange),
-      voiceAllowSave: flag(voice, 'allowSave', d.voiceAllowSave),
-      voiceAllowPublic: flag(voice, 'allowPublic', d.voiceAllowPublic),
-      voiceModeration: flag(voice, 'moderation', d.voiceModeration),
     );
   }
 
@@ -98,10 +82,6 @@ class AppSettings {
     int? chatPerMinute,
     bool? voiceOnline,
     int? voiceMaxSeconds,
-    int? voiceMaxKB,
-    bool? voiceAllowSave,
-    bool? voiceAllowPublic,
-    bool? voiceModeration,
   }) =>
       AppSettings.fromJson({
         ...AppSettings(
@@ -111,10 +91,6 @@ class AppSettings {
           chatPerMinute: chatPerMinute ?? this.chatPerMinute,
           voiceOnline: voiceOnline ?? this.voiceOnline,
           voiceMaxSeconds: voiceMaxSeconds ?? this.voiceMaxSeconds,
-          voiceMaxKB: voiceMaxKB ?? this.voiceMaxKB,
-          voiceAllowSave: voiceAllowSave ?? this.voiceAllowSave,
-          voiceAllowPublic: voiceAllowPublic ?? this.voiceAllowPublic,
-          voiceModeration: voiceModeration ?? this.voiceModeration,
         ).toJson(),
       });
 

@@ -1,5 +1,7 @@
 // اختبارات الشات: قبول/رفض الرسايل عند الهوست، السرعة، الكتم، التكرار، المسح، والطرد،
 // واستقبال الموبايلات للرسايل والتاريخ بعد ما يرجعوا، وحدود إعدادات الأدمن
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:karta/game/chat.dart';
 import 'package:karta/game/game_controller.dart';
@@ -140,24 +142,49 @@ void main() {
     phone.dispose();
   });
 
-  test('voice messages only accept https links', () {
-    expect(VoiceAttachment.fromJson({'url': 'https://x.supabase.co/a.webm', 'ms': 3000})!.durationMs, 3000);
-    expect(VoiceAttachment.fromJson({'url': 'javascript:alert(1)', 'ms': 3000}), isNull);
-    expect(VoiceAttachment.fromJson({'url': 'https://x', 'ms': 'long'}), isNull);
+  test('voice notes travel inside the message, are validated, and are left out of the history', () {
+    final voice = VoiceAttachment.fromBytes(Uint8List.fromList(List.filled(2000, 7)), 'audio/webm', 3000);
+    final back = VoiceAttachment.fromJson(voice.toJson())!;
+    expect(back.bytes.length, 2000);
+    expect(back.durationMs, 3000);
+    // نوع مش صوت، أو حجم أكبر من حد القناة، أو base64 بايظ: مرفوض
+    expect(VoiceAttachment.fromJson({'b': voice.data, 'mime': 'text/html', 'ms': 3000}), isNull);
+    expect(VoiceAttachment.fromJson({'b': 'A' * (VoiceAttachment.maxDataLength + 4), 'mime': 'audio/webm', 'ms': 3000}), isNull);
+    expect(VoiceAttachment.fromJson({'b': '%%%not-base64%%%', 'mime': 'audio/webm', 'ms': 3000}), isNull);
+
+    // التاريخ اللي بيتبعت للي بيدخل متأخر: من غير الصوت نفسه (عشان يفضل صغير)
+    final message = ChatMessage(id: 'v1', device: 'p1', name: 'Sara', text: '', voice: voice, context: ChatContext.game, at: 1);
+    final light = ChatMessage.fromJson(message.toJson(withVoiceData: false))!;
+    expect(light.voice!.available, isFalse);
+    expect(ChatMessage.fromJson(message.toJson())!.voice!.available, isTrue);
+  });
+
+  test('closing the game wipes the chat, the lobby and the device id from memory', () {
+    final game = host();
+    game.handleRemoteAction({'type': 'chat', 'device': 'phone-1', 'name': 'Omar', 'id': 'x1', 'text': 'hi'});
+    game.toggleMute('phone-1');
+    game.kick('phone-2');
+    final oldId = game.deviceId;
+    game.goHome();
+    expect(game.chat.messages, isEmpty);
+    expect(game.chat.muted, isEmpty);
+    expect(game.lobby, isEmpty);
+    expect(game.kicked, isEmpty);
+    expect(game.chatView, isEmpty);
+    expect(game.deviceId, isNot(oldId));
+    game.dispose();
   });
 
   test('admin settings keep values inside safe limits and survive JSON', () {
     final s = AppSettings.fromJson({
       'online': {'enabled': false},
       'chat': {'maxLength': 99999, 'perMinute': 0},
-      'voice': {'maxSeconds': 1000, 'maxKB': 50000, 'moderation': false},
+      'voice': {'maxSeconds': 1000},
     });
     expect(s.onlineEnabled, isFalse);
     expect(s.chatMaxLength, AppSettings.chatLengthRange.$2);
     expect(s.chatPerMinute, AppSettings.chatPerMinuteRange.$1);
-    expect(s.voiceMaxSeconds, AppSettings.voiceSecondsRange.$2);
-    expect(s.voiceMaxKB, 2048); // مايعديش حد الـ bucket
-    expect(s.voiceModeration, isFalse);
+    expect(s.voiceMaxSeconds, 60); // أكتر من كده الرسالة تعدي حد القناة
     final back = AppSettings.fromJson(s.toJson());
     expect(back.toJson(), s.toJson());
     // الإعدادات القديمة (من غير الخانات دي) بتاخد القيم الافتراضية

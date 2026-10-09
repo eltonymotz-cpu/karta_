@@ -176,6 +176,7 @@ class GameController extends ChangeNotifier {
   String deviceId = savedDeviceId ?? _newDeviceId(); // رقم مميز للموبايل ده (بيتحفظ عشان لو الصفحة اتعملها ريفريش يرجع لنفس مكانه)
   static String? savedDeviceId;         // بيتحمل من الجهاز قبل ما التطبيق يبدأ (main.dart)
   static String savedNickname = '';
+  static void Function()? onSessionClosed; // بيمسح رقم الموبايل المتخزن لما اللعبة تتقفل
   Map<int, String> claims = {};         // مين ماسك أنهي لاعب: رقم اللاعب ← رقم الموبايل
   int? myPlayerIndex;                   // موبايل اللاعب: أنا أنهي لاعب؟
   bool drawPending = false;             // موبايل اللاعب: طلب السحب اتبعت ومستني الهوست
@@ -511,12 +512,17 @@ class GameController extends ChangeNotifier {
     if (isHost && room != null) room!.sendState({'screen': 'closed'});
     _pingTimer?.cancel();
     _closeRoom();
+    // اللعبة اتقفلت: كل حاجة ليها علاقة بالقعدة بتتمسح من الذاكرة (مفيش حاجة متحفظة أصلاً)
     chat.clear();
     chatView.clear();
     pendingChat.clear();
     lobby.clear();
+    kicked.clear();
     chatOpen = false;
     chatUnread = 0;
+    nickname = '';
+    deviceId = _newDeviceId(); // رقم جديد للقعدة الجاية (القديم مالوش أي لازمة)
+    onSessionClosed?.call();
     isViewer = false;
     multiDevice = false;
     myPlayerIndex = null;
@@ -1438,7 +1444,9 @@ class GameController extends ChangeNotifier {
     if (rawKicked is List && rawKicked.contains(deviceId)) {
       wasKicked = true;
       viewerHasState = false;
+      _wipeViewerSession();
       room?.close();
+      return;
     }
     final history = s['chat'];
     if (history is List) {
@@ -1447,7 +1455,9 @@ class GameController extends ChangeNotifier {
       for (final raw in history) {
         final m = ChatMessage.fromJson(raw);
         if (m != null) {
-          byId[m.id] = m;
+          // لو الصوت عندي خلاص (وصل لايف) مانبدلوش بالنسخة اللي من غير صوت
+          final mine = byId[m.id];
+          if (mine == null || !(mine.voice?.available ?? false)) byId[m.id] = m;
           pendingChat.remove(m.id)?.timer?.cancel();
         }
       }
@@ -1455,6 +1465,16 @@ class GameController extends ChangeNotifier {
         ..clear()
         ..addAll(byId.values.toList()..sort((a, b) => a.at.compareTo(b.at)));
     }
+  }
+
+  void _wipeViewerSession() {
+    for (final p in pendingChat.values) {
+      p.timer?.cancel();
+    }
+    chatView.clear();
+    pendingChat.clear();
+    lobby.clear();
+    chatUnread = 0;
   }
 
   /// للاختبارات: حدث من الهوست وصل للموبايل
@@ -1475,7 +1495,8 @@ class GameController extends ChangeNotifier {
   void _broadcastState({bool withChat = false}) {
     final snapshot = _toSnapshot();
     // الشات القديم بيتبعت بس لما حد يدخل/يرجع (مش مع كل تغيير، عشان الرسايل تفضل صغيرة وسريعة)
-    if (withChat) snapshot['chat'] = [for (final m in chat.messages) m.toJson()];
+    // (الصوت نفسه مابيتبعتش في التاريخ عشان الرسالة تفضل تحت حد القناة)
+    if (withChat) snapshot['chat'] = [for (final m in chat.messages) m.toJson(withVoiceData: false)];
     room?.sendState(snapshot);
   }
 
@@ -1548,6 +1569,7 @@ class GameController extends ChangeNotifier {
     if (screenName == 'closed') {
       roomClosed = true;
       viewerHasState = false;
+      _wipeViewerSession(); // القعدة اتقفلت: الشات واللوبي بيتمسحوا من الموبايل على طول
       notifyListeners();
       return;
     }

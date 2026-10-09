@@ -15,9 +15,7 @@ import '../services/admin_auth.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../services/app_settings.dart';
-import '../services/device_identity.dart';
 import 'help_screen.dart';
-import 'voice_library_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final GameController game;
@@ -186,7 +184,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!AppConfig.hasSupabase) return _snack(game.t(UiText.noSupabase));
     if (_codeController.text.trim().length < 4) return;
     game.setNickname(_nameController.text);
-    saveNickname(game.nickname);
     game.joinRoom(_codeController.text);
   }
 
@@ -257,14 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(height: 28),
                           _joinBox(),
                         ],
-                        if (AppConfig.hasSupabase && AppSettings.current.voiceOnline) ...[
-                          const SizedBox(height: 16),
-                          TextButton.icon(
-                            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => VoiceLibraryScreen(game: game))),
-                            icon: Icon(Icons.library_music, color: AppColors.ink),
-                            label: Text(game.t(UiText.voiceLibrary), style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
-                          ),
-                        ],
+
                       ],
                     ),
                   ),

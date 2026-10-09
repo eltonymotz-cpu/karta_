@@ -1,8 +1,9 @@
 // =================================================================
-// رقم الموبايل + اسمه في الشات (بيتحفظوا على الجهاز)
+// رقم الموبايل في القعدة الحالية بس
 // -----------------------------------------------------------------
-// عشان لو الصفحة اتعملها ريفريش أو النت فصل ورجع، الموبايل يرجع بنفس الرقم:
-// الهوست يعرفه، فيرجع لنفس اللاعب اللي كان ماسكه ونفس رسايله في الشات.
+// بيتخزن مؤقتاً عشان لو الصفحة اتعملها ريفريش وسط اللعب، الموبايل يرجع لنفس اللاعب.
+// أول ما اللعبة تتقفل (الرجوع للشاشة الأولى) بيتمسح نهائي.
+// مفيش اسم ولا رسايل ولا أي حاجة تانية بتتحفظ.
 // =================================================================
 import 'dart:math';
 
@@ -13,11 +14,11 @@ import '../game/game_controller.dart';
 
 class DeviceIdentity {
   static const _deviceKey = 'device_id';
-  static const _nameKey = 'chat_name';
 
   static Future<void> load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('chat_name'); // اسم الشات القديم (لو اتحفظ في نسخة قديمة) بيتمسح
       var id = prefs.getString(_deviceKey);
       if (id == null || id.length < 8) {
         final r = Random.secure();
@@ -25,19 +26,17 @@ class DeviceIdentity {
         await prefs.setString(_deviceKey, id);
       }
       GameController.savedDeviceId = id;
-      GameController.savedNickname = prefs.getString(_nameKey) ?? '';
     } catch (e) {
       debugPrint('Device id could not be stored: $e');
     }
+    GameController.onSessionClosed = clear;
   }
-}
 
-/// حفظ اسمي في الشات للمرة الجاية
-Future<void> saveNickname(String name) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(DeviceIdentity._nameKey, name);
-  } catch (e) {
-    debugPrint('Nickname could not be saved: $e');
+  /// اللعبة اتقفلت: نمسح الرقم المتخزن
+  static Future<void> clear() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_deviceKey);
+    } catch (_) {}
   }
 }
