@@ -6,7 +6,7 @@
 # 2) App Store Connect → Users and Access → Integrations → App Store Connect API → اعمل Key
 #    (صلاحية App Manager) ونزّل ملف الـ .p8
 # 3) في Codemagic: Team settings → Integrations → Developer Portal → ضيف الـ Key
-#    باسم karta_asc (اسمه لازم يبقى زي اللي تحت).
+#    باسم belya-final (اسمه لازم يبقى زي اللي تحت).
 # 4) App Store Connect → Apps → + → New App بنفس الـ Bundle ID: com.eltonymotz.karta
 #    (لو الـ Bundle ID ده مش متاح، غيّره هنا وفي ios/Runner.xcodeproj/project.pbxproj)
 # 5) شغّل الـ workflow اللي اسمه ios-testflight من Codemagic.
@@ -18,7 +18,7 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
-      app_store_connect: karta_asc
+      app_store_connect: belya-final
     environment:
       flutter: stable
       xcode: latest
