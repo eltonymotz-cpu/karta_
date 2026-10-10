@@ -7,7 +7,7 @@
 #    (صلاحية App Manager) ونزّل ملف الـ .p8
 # 3) في Codemagic: Team settings → Integrations → Developer Portal → ضيف الـ Key
 #    باسم karta_asc (اسمه لازم يبقى زي اللي تحت).
-# 4) App Store Connect → Apps → + → New App بنفس الـ Bundle ID: com.karta.karta
+# 4) App Store Connect → Apps → + → New App بنفس الـ Bundle ID: com.eltonymotz.karta
 #    (لو الـ Bundle ID ده مش متاح، غيّره هنا وفي ios/Runner.xcodeproj/project.pbxproj)
 # 5) شغّل الـ workflow اللي اسمه ios-testflight من Codemagic.
 # التوقيع (الشهادات والـ provisioning) بيتعمل أوتوماتيك عن طريق الـ Key.
@@ -25,7 +25,7 @@ workflows:
       cocoapods: default
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.karta.karta
+        bundle_identifier: com.eltonymotz.karta
     scripts:
       - name: Packages
         script: flutter pub get
