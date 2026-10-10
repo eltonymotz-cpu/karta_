@@ -135,6 +135,8 @@ class HelpText {
         '• 👏 زرار التصفيق: في أكتر من موبايل كل لاعب يدوس الزرار من موبايله، واللعبة بتعرض مين صقّف الأول، ولما الهوست يدوس على الكارت التصفيق بيتقفل وبيظهر مين الأخير وزرار يدّيله الكارت.\n'
         '• 👁 الإجابة: لو الكارت ليه إجابة، الهوست بس يقدر يكشفها، وبتظهر لكل اللاعيبة.\n'
         '• 💬🎤 الشات والرسايل الصوتية في أكتر من موبايل: مابيتحفظوش في أي مكان وبيتمسحوا أول ما اللعبة تتقفل.\n'
+        '• 🪙 الكوينز (لعب بس، مالهاش قيمة حقيقية): كل لاعب بيبدأ برصيد، واللي ياخد كارت بيدفع ضريبة. فيه مكافآت، وتحويل بين اللاعيبة، وتحديات "أول واحد ياخد كارت يخسر الرهان". الرصيد بيتمسح أول ما اللعبة تتقفل.\n'
+        '• ⏸ الهوست يقدر يوقّف اللعبة مؤقتاً (السحب والعدادات بيقفوا) ويكمّلها.\n'
         '• 🌙 الوضع الغامق: زرار القمر جنب اللغة، والاختيار بيتحفظ على الجهاز.',
     '• ⏱ Sa3a le kol la3eb: bt3od le fo2 men awel ma yes7ab el kart le7ad ma doro ykhallas, w btezhar ta7t esmo. Men "El adwar wel wa2t" el host ye2dar ywa22afha, ykammelha, yenhy el dor, w ysaggel "Gaweb" aw "Magawebsh". Wa2t kol dor byet7efez lewa7do.\n'
         '• ⏭ "3addy el dor": el host y3addy dor la3eb men gher ma yes7ab.\n'
@@ -142,6 +144,8 @@ class HelpText {
         '• 👏 Zorar el tasfee2: fe aktar men mobile kol la3eb ydoos el zorar men mobilo, wel le3ba bt3red meen sa22af el awel, w lama el host ydoos 3al kart el tasfee2 byet2efel w byezhar meen el akher.\n'
         '• 👁 El egaba: law el kart leeh egaba, el host bas ye2dar yekshefha, w btezhar le kol el la3eeba.\n'
         '• 💬🎤 El chat wel rasayel el sawtya: mabyet7efzoosh fe ay makan w byetmes7o awel ma el le3ba tet2efel.\n'
+        '• 🪙 El coins (le3b bas): kol la3eb byebda2 b raseed, w elly yakhod kart byedfa3 dareeba. Feeh mokaf2at, ta7weel ben el la3eeba, w ta7addyat. El raseed byetmese7 awel ma el le3ba tet2efel.\n'
+        '• ⏸ El host ye2dar ywa22af el le3ba mo2aqatan w ykammelha.\n'
         '• 🌙 El wad3 el ghame2: zorar el 2amar ganb el logha, wel ekhtyar byet7efez 3al gehaz.',
   );
 

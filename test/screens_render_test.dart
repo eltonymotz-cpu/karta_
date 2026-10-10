@@ -7,6 +7,8 @@ import 'package:karta/screens/admin_screen.dart';
 import 'package:karta/screens/asset_library_screen.dart';
 import 'package:karta/screens/online_settings_screen.dart';
 import 'package:karta/widgets/chat_panel.dart';
+import 'package:karta/screens/economy_settings_screen.dart';
+import 'package:karta/widgets/wallet_panel.dart';
 import 'package:karta/screens/card_library_screen.dart';
 import 'package:karta/screens/game_screen.dart';
 import 'package:karta/screens/help_screen.dart';
@@ -30,6 +32,9 @@ void main() {
     'assets': (g) => AssetLibraryScreen(game: g),
     'online settings': (g) => OnlineSettingsScreen(game: g),
     'chat': (g) => Scaffold(body: ChatPanel(game: g..chatForTest = true)),
+    'economy settings': (g) => EconomySettingsScreen(game: g),
+    'wallet': (g) => Scaffold(body: WalletPanel(game: g)),
+    'paused game': (g) => GameScreen(game: g..togglePause()),
   };
 
   for (final dark in [false, true]) {

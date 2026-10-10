@@ -15,6 +15,7 @@ import '../data/texts.dart';
 import '../game/game_controller.dart';
 import '../theme.dart';
 import 'common.dart';
+import 'wallet_panel.dart';
 
 // =================================================================
 // ساعة الإيقاف
@@ -242,6 +243,11 @@ class _PanelRow extends StatelessWidget {
             game.t(fillText(UiText.cardsShort, {'n': entry.cards})),
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.ink),
           ),
+          // الكوينز (منفصلة عن ترتيب الكروت)
+          if (game.coinsOn) ...[
+            const SizedBox(width: 8),
+            CoinAmount(game: game, amount: game.economy.balanceOf(entry.player), size: 11),
+          ],
         ],
       ),
     );

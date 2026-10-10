@@ -529,4 +529,11 @@ class UiText {
   static const search = LText('بحث...', 'Ba7s...');
   static const all = LText('الكل', 'El kol');
   static const noResults = LText('مفيش نتايج', 'Mafeesh nataye2');
+
+  // ---------- الإيقاف المؤقت ----------
+  static const pauseGame = LText('⏸ وقّف اللعبة', '⏸ Wa22af el le3ba');
+  static const resumeGame = LText('▶ كمّل اللعبة', '▶ Kammel el le3ba');
+  static const gamePaused = LText('اللعبة واقفة مؤقتاً', 'El le3ba wa2fa mo2aqatan');
+  static const logPaused = LText('⏸ الهوست وقّف اللعبة', '⏸ El host wa22af el le3ba');
+  static const logResumed = LText('▶ اللعبة كمّلت', '▶ El le3ba kammelet');
 }

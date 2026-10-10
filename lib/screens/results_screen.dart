@@ -8,6 +8,7 @@ import '../game/game_controller.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/wallet_panel.dart';
 
 class ResultsScreen extends StatelessWidget {
   final GameController game;
@@ -136,6 +137,11 @@ class ResultsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(player.name.toUpperCase(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                    // رصيد الكوينز في آخر اللعبة (بيتمسح لما اللعبة تتقفل)
+                    if (game.coinsOn) ...[
+                      const SizedBox(height: 4),
+                      CoinAmount(game: game, amount: game.economy.balanceOf(game.players.indexOf(player)), size: 13),
+                    ],
                     if (player.cards.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       // الكروت اللي أخدها

@@ -35,6 +35,7 @@ import '../services/room_service.dart';
 import '../services/sound_service.dart';
 import '../services/app_settings.dart';
 import 'chat.dart';
+import 'economy.dart';
 import 'game_settings.dart';
 
 /// الشاشات الموجودة في التطبيق
@@ -127,6 +128,14 @@ class ClapTap {
   const ClapTap(this.player, this.at);
 }
 
+/// تغيير في رصيد لاعب للأنيميشن ("-50 🪙" فوق اسمه) - بيوصل لكل الموبايلات
+class CoinFx {
+  final int id;
+  final int player;
+  final int delta;
+  const CoinFx(this.id, this.player, this.delta);
+}
+
 /// موبايل في القعدة (اللوبي)
 class LobbyMember {
   final String name;
@@ -197,6 +206,19 @@ class GameController extends ChangeNotifier {
   GameEvent? lastEvent;                 // آخر حدث (للأنيميشن)
   final List<TurnRecord> turns = [];    // كل الأدوار اللي اتلعبت (ساعة كل لاعب)
   bool clapOpen = false;                // مرحلة التصفيق مفتوحة (الضغطات بتتسجل)
+
+  // ---------------- الكوينز ----------------
+  final Economy economy = Economy();    // الهوست بيحسب، واللاعيبة بيعرضوا اللي جاي منه
+  final List<CoinFx> coinFx = [];       // آخر تغييرات في الأرصدة (للأنيميشن على كل الموبايلات)
+  int _coinFxSeq = 0;
+  final Map<String, Completer<String?>> _coinWaiters = {}; // موبايل اللاعب: مستني رد الهوست
+  int _coinReqSeq = 0;
+
+  // ---------------- الإيقاف المؤقت ----------------
+  bool paused = false;                  // الهوست وقّف اللعبة (مفيش سحب ولا عدادات)
+  Duration? _pausedQuestionLeft;
+  Duration? _pausedBombLeft;
+  bool _turnPausedByGame = false;
 
   // ---------------- الشات واللوبي ----------------
   final ChatRoom chat = ChatRoom();     // الهوست: الرسايل المقبولة (هو المرجع)
@@ -518,6 +540,9 @@ class GameController extends ChangeNotifier {
     pendingChat.clear();
     lobby.clear();
     kicked.clear();
+    economy.clear();
+    coinFx.clear();
+    paused = false;
     chatOpen = false;
     chatUnread = 0;
     nickname = '';
@@ -574,6 +599,12 @@ class GameController extends ChangeNotifier {
     clapTaps.clear();
     clapOpen = false;
     answerShown = false;
+    paused = false;
+    _pausedQuestionLeft = null;
+    _pausedBombLeft = null;
+    // الكوينز: رصيد جديد لكل لاعب في كل لعبة (ومفيش حاجة بتتحفظ بعد اللعبة)
+    economy.start(names.length, AppSettings.current.economyFor(online: multiDevice), nowMs);
+    coinFx.clear();
     log.clear();
     // لو عدد اللاعيبة قل، نشيل المسكات اللي لأرقام مبقتش موجودة
     claims.removeWhere((index, _) => index >= players.length);
@@ -614,6 +645,11 @@ class GameController extends ChangeNotifier {
   /// تنهي اللعبة وتروح لشاشة النتائج
   void finishGame() {
     _cancelTimers();
+    paused = false;
+    // آخر اللعبة: الحصالة ومكافأة الكسبان (الأقل كروت) + رجوع رهانات التحديات اللي ماخلصتش
+    if (isHost && players.isNotEmpty) {
+      _coins(economy.endGame([for (final r in ranking) if (r.rank == 1) r.player], nowMs));
+    }
     screen = AppScreen.results;
     sound.play(Sfx.fanfare);
     notifyListeners();
@@ -633,6 +669,7 @@ class GameController extends ChangeNotifier {
   void tapCard() {
     if (isViewer) {
       // موبايل اللاعب: يصقّف لو التصفيق مفتوح، أو يطلب يسحب لو ده دوره
+      if (paused) return;
       if (phase == CardPhase.clapGo) {
         requestClap();
       } else {
@@ -640,6 +677,7 @@ class GameController extends ChangeNotifier {
       }
       return;
     }
+    if (paused) return; // اللعبة واقفة مؤقتاً
     // نتجاهل الضغطة لو جت بسرعة جداً بعد اللي قبلها (ضغطة مزدوجة بالغلط)
     if (!_debounce()) return;
 
@@ -771,11 +809,13 @@ class GameController extends ChangeNotifier {
   // =================================================================
   // مؤقت كروت الأسئلة
   // =================================================================
-  void _startQuestionTimer(int seconds) {
+  void _startQuestionTimer(int seconds) => _armQuestionTimer(Duration(seconds: seconds));
+
+  void _armQuestionTimer(Duration duration) {
     _questionTimer?.cancel();
     final seq = _cardSeq;
-    questionEndsAt = DateTime.now().add(Duration(seconds: seconds));
-    _questionTimer = Timer(Duration(seconds: seconds), () {
+    questionEndsAt = DateTime.now().add(duration);
+    _questionTimer = Timer(duration, () {
       // لو الكارت اتغير أو الدور خلص قبل الوقت، المؤقت ده مالوش لازمة
       if (seq != _cardSeq || phase != CardPhase.front) return;
       _questionTimeout();
@@ -812,6 +852,7 @@ class GameController extends ChangeNotifier {
     silentIndex = currentIndex;
     silentCard = card;
     _addLog(UiText.logSilentTake, {'name': currentPlayer.name, 'card': card.label});
+    _loseCoins('card$_cardSeq', currentIndex, card.label);
     _emit(GameEventKind.loss, currentIndex, 1);
     sound.play(Sfx.boing);
     HapticFeedback.mediumImpact();
@@ -840,6 +881,8 @@ class GameController extends ChangeNotifier {
     _giveAsideCards(to);
 
     silentIndex = toIndex;
+    // اللي كلّم الصامت خسر جولة: ضريبة (مفتاح مميز للنقلة دي عشان ماتتكررش)
+    _loseCoins('pass$_cardSeq-$toIndex-${to.cards.length}', toIndex, card.label);
     _emit(GameEventKind.loss, toIndex, to.cards.length - before);
     sound.playPenalty();
     HapticFeedback.mediumImpact();
@@ -866,6 +909,8 @@ class GameController extends ChangeNotifier {
       caduCards.clear();
     }
     _giveAsideCards(player);
+    // ضريبة الخسارة (مرة واحدة للكارت ده) + التحديات اللي اللاعب ده فيها
+    _loseCoins('card$_cardSeq', index, card.label);
 
     _emit(GameEventKind.loss, index, player.cards.length - before);
     sound.playPenalty(); // مرة بطة، مرة زمارة، مرة بوم...
@@ -885,6 +930,8 @@ class GameController extends ChangeNotifier {
   void pickNobody() {
     if (isViewer || currentCard == null) return;
     _addLog(UiText.logNobody, {});
+    // محدش خسر: مكافأة لصاحب الدور (لو الأدمن مفعّلها)
+    _coin(economy.reward('nobody$_cardSeq', currentIndex, economy.config.rewardNobodyLost, 'nobodyLost', nowMs));
     _emit(GameEventKind.nobody, -1, 0);
     sound.play(Sfx.ding);
     _nextTurn();
@@ -982,6 +1029,13 @@ class GameController extends ChangeNotifier {
     if (isViewer || turn == null || turn.status == TurnStatus.skipped) return;
     if (status != TurnStatus.answered && status != TurnStatus.noAnswer) return;
     turn.status = status;
+    // مكافأة "جاوب" (ولو الهوست غيّرها لـ "ماجاوبش" بتترجع)
+    final rewardKey = 'answered${turns.indexOf(turn)}';
+    if (status == TurnStatus.answered) {
+      _coin(economy.reward(rewardKey, turn.player, economy.config.rewardAnswered, 'answered', nowMs));
+    } else {
+      _coin(economy.revokeReward(rewardKey, nowMs));
+    }
     if (turn.player < players.length) {
       _addLog(UiText.logTurnStatus, {
         'name': players[turn.player].name,
@@ -1032,6 +1086,7 @@ class GameController extends ChangeNotifier {
     if (!clapOpen) return;
     clapOpen = false;
     if (clapTaps.isNotEmpty) {
+      _coin(economy.reward('clap$_cardSeq', clapTaps.first.player, economy.config.rewardClapFirst, 'clapFirst', nowMs));
       _addLog(UiText.logClapResult, {
         'first': players[clapTaps.first.player].name,
         'last': players[clapTaps.last.player].name,
@@ -1044,6 +1099,178 @@ class GameController extends ChangeNotifier {
     if (isViewer || !clapActive || clapOpen || currentCard == null) return;
     clapOpen = true;
     phase = CardPhase.clapGo;
+    notifyListeners();
+  }
+
+  // =================================================================
+  // الكوينز
+  // =================================================================
+
+  /// الكوينز شغالة في اللعبة دي؟
+  bool get coinsOn => economy.config.enabled && economy.wallets.isNotEmpty;
+
+  /// ضريبة الخسارة + التحديات (للاعب اللي خد كارت)
+  void _loseCoins(String roundKey, int player, String card) {
+    if (isViewer) return;
+    _coins(economy.settleRound(roundKey, [player], category: currentRule?.category, turnPlayer: currentIndex, card: card, now: nowMs));
+    _coins(economy.onCardTaken(player, nowMs));
+  }
+
+  void _coin(CoinChange? change) {
+    if (change != null) _coins([change]);
+  }
+
+  /// تسجيل التغييرات للأنيميشن (آخر 12 بس)
+  void _coins(List<CoinChange> changes) {
+    for (final c in changes) {
+      if (c.delta == 0) continue;
+      coinFx.add(CoinFx(++_coinFxSeq, c.player, c.delta));
+    }
+    if (coinFx.length > 12) coinFx.removeRange(0, coinFx.length - 12);
+  }
+
+  String _newCoinId() => '$deviceId-${DateTime.now().millisecondsSinceEpoch}-${_coinReqSeq++}';
+
+  /// تحويل كوينز. الهوست بينفذ على طول، وموبايل اللاعب بيبعت طلب ويستنى الرد.
+  /// بيرجع كود الخطأ أو null لو تم.
+  Future<String?> transferCoins(int from, int to, int amount) =>
+      _coinRequest({'type': 'coinTransfer', 'from': from, 'to': to, 'amount': amount}, (id) => economy.transfer(id, from, to, amount, nowMs));
+
+  Future<String?> inviteChallenge(int from, int to, int stake) =>
+      _coinRequest({'type': 'challenge', 'from': from, 'to': to, 'stake': stake}, (id) => economy.invite(id, from, to, stake, nowMs));
+
+  Future<String?> replyChallenge(String challengeId, bool accept) =>
+      _coinRequest({'type': 'challengeReply', 'challenge': challengeId, 'accept': accept}, (_) => economy.respond(challengeId, accept, nowMs));
+
+  Future<String?> cancelChallenge(String challengeId) {
+    final c = economy.challenges.where((c) => c.id == challengeId).firstOrNull;
+    if (c == null) return Future.value('invalid');
+    return _coinRequest({'type': 'challengeCancel', 'challenge': challengeId},
+        (_) => economy.cancelInvite(challengeId, c.from) ? null : 'invalid');
+  }
+
+  /// الهوست: تعديل يدوي لرصيد لاعب (لازم سبب، وبيتسجل في العمليات بالرصيد قبل وبعد)
+  String? adjustCoins(int player, int delta, String reason) {
+    if (isViewer) return 'invalid';
+    final before = economy.balanceOf(player);
+    final error = economy.adjust(_newCoinId(), player, delta, reason, nowMs);
+    if (error == null) {
+      _coins([CoinChange(player, economy.balanceOf(player) - before)]);
+      notifyListeners();
+    }
+    return error;
+  }
+
+  Future<String?> _coinRequest(Map<String, dynamic> action, String? Function(String id) hostRun) async {
+    final id = _newCoinId();
+    if (isHost) {
+      final before = [for (var i = 0; i < players.length; i++) economy.balanceOf(i)];
+      final error = hostRun(id);
+      if (error == null) _recordBalanceChanges(before);
+      notifyListeners();
+      return error;
+    }
+    final waiter = Completer<String?>();
+    _coinWaiters[id] = waiter;
+    room?.sendAction({...action, 'id': id, 'device': deviceId});
+    return waiter.future.timeout(const Duration(seconds: 6), onTimeout: () {
+      _coinWaiters.remove(id);
+      return 'timeout';
+    });
+  }
+
+  /// بعد عملية: نسجل تغيير كل لاعب للأنيميشن
+  void _recordBalanceChanges(List<int> before) {
+    _coins([
+      for (var i = 0; i < before.length; i++)
+        if (economy.balanceOf(i) != before[i]) CoinChange(i, economy.balanceOf(i) - before[i]),
+    ]);
+  }
+
+  /// الهوست: طلب كوينز من موبايل لاعب (بنتأكد إنه ماسك اللاعب اللي بيدفع أو بيرد)
+  void _receiveCoinAction(String type, Map<String, dynamic> action, String device) {
+    final id = action['id'];
+    if (id is! String || id.length > 60) return;
+    int? number(String key) => (action[key] as num?)?.toInt();
+    String? error;
+    final before = [for (var i = 0; i < players.length; i++) economy.balanceOf(i)];
+    switch (type) {
+      case 'coinTransfer':
+        final from = number('from'), to = number('to'), amount = number('amount');
+        if (from == null || to == null || amount == null || claims[from] != device) {
+          error = 'notYours';
+        } else {
+          error = economy.transfer(id, from, to, amount, nowMs);
+        }
+      case 'challenge':
+        final from = number('from'), to = number('to'), stake = number('stake');
+        if (from == null || to == null || stake == null || claims[from] != device) {
+          error = 'notYours';
+        } else {
+          error = economy.invite(id, from, to, stake, nowMs);
+        }
+      case 'challengeReply':
+        final c = economy.challenges.where((c) => c.id == action['challenge']).firstOrNull;
+        if (c == null || claims[c.to] != device) {
+          error = 'notYours';
+        } else {
+          error = economy.respond(c.id, action['accept'] == true, nowMs);
+        }
+      case 'challengeCancel':
+        final c = economy.challenges.where((c) => c.id == action['challenge']).firstOrNull;
+        if (c == null || claims[c.from] != device) {
+          error = 'notYours';
+        } else if (!economy.cancelInvite(c.id, c.from)) {
+          error = 'invalid';
+        }
+    }
+    if (error == null) _recordBalanceChanges(before);
+    room?.sendEvent('coinResult', {'id': id, 'device': device, 'error': ?error});
+    notifyListeners();
+  }
+
+  // =================================================================
+  // إيقاف اللعبة مؤقتاً (الهوست)
+  // =================================================================
+  void togglePause() {
+    if (isViewer || screen != AppScreen.game) return;
+    final now = DateTime.now();
+    if (!paused) {
+      paused = true;
+      // نحفظ الوقت الفاضل في مؤقت السؤال والقنبلة ونوقفهم
+      if (questionEndsAt != null) {
+        _pausedQuestionLeft = questionEndsAt!.difference(now);
+        _stopQuestionTimer();
+      }
+      if (phase == CardPhase.bombTicking && bombEndsAt != null) {
+        _pausedBombLeft = bombEndsAt!.difference(now);
+        _bombTimer?.cancel();
+        _tickTimer?.cancel();
+        _bombTimer = null;
+        _tickTimer = null;
+      }
+      final turn = activeTurn;
+      if (turn != null && !turn.isPaused) {
+        turn.pausedAt = nowMs;
+        _turnPausedByGame = true;
+      }
+      _addLog(UiText.logPaused, {});
+    } else {
+      paused = false;
+      final q = _pausedQuestionLeft;
+      _pausedQuestionLeft = null;
+      if (q != null && phase == CardPhase.front) _armQuestionTimer(q);
+      final b = _pausedBombLeft;
+      _pausedBombLeft = null;
+      if (b != null && phase == CardPhase.bombTicking) _armBomb(b);
+      final turn = activeTurn;
+      if (_turnPausedByGame && turn != null && turn.pausedAt != null) {
+        turn.pausedMs += nowMs - turn.pausedAt!;
+        turn.pausedAt = null;
+      }
+      _turnPausedByGame = false;
+      _addLog(UiText.logResumed, {});
+    }
     notifyListeners();
   }
 
@@ -1074,6 +1301,8 @@ class GameController extends ChangeNotifier {
       silentIndex = -1;
     }
     _addLog(UiText.logCorrection, {'name': player.name, 'card': card.label});
+    // الكارت اتدى بالغلط: الضريبة بتاعته بترجع
+    _coin(economy.refundTaxForCard(playerIndex, card.label, nowMs));
     _emit(GameEventKind.correction, playerIndex, 1);
     sound.play(Sfx.ding);
     notifyListeners();
@@ -1110,8 +1339,14 @@ class GameController extends ChangeNotifier {
     final min = GameSettings.bombMinSeconds;
     final max = settings.bombMaxSeconds;
     final seconds = min + _random.nextInt(max - min + 1);
+    _armBomb(Duration(seconds: seconds));
+    notifyListeners();
+  }
+
+  /// تشغيل عداد القنبلة (من الأول، أو من الوقت الفاضل بعد الإيقاف المؤقت)
+  void _armBomb(Duration duration) {
     final seq = _cardSeq;
-    bombEndsAt = DateTime.now().add(Duration(seconds: seconds));
+    bombEndsAt = DateTime.now().add(duration);
     sound.play(Sfx.tick);
     // التكة كل ثانية، وفي آخر 5 ثواني بتسرّع (كل نص ثانية) كتحذير
     var halfSeconds = 0;
@@ -1120,10 +1355,9 @@ class GameController extends ChangeNotifier {
       final left = bombEndsAt?.difference(DateTime.now()) ?? Duration.zero;
       if (left.inMilliseconds <= 5000 || halfSeconds.isEven) sound.play(Sfx.tick);
     });
-    _bombTimer = Timer(Duration(seconds: seconds), () {
+    _bombTimer = Timer(duration, () {
       if (seq == _cardSeq) _explode();
     });
-    notifyListeners();
   }
 
   void _explode() {
@@ -1217,6 +1451,13 @@ class GameController extends ChangeNotifier {
       case 'chat':
         _receiveChat(action, device);
         break;
+      // الكوينز: كل طلب لازم يكون من الموبايل الماسك اللاعب اللي بيدفع/بيرد
+      case 'coinTransfer':
+      case 'challenge':
+      case 'challengeReply':
+      case 'challengeCancel':
+        _receiveCoinAction(type!, action, device);
+        break;
       case 'chatDelete':
         final id = action['id'];
         if (id is String && chat.delete(id, byDevice: device, byHost: false)) {
@@ -1242,14 +1483,14 @@ class GameController extends ChangeNotifier {
         break;
       case 'draw':
         // مسموح بس: في شاشة اللعب، والكارت مقلوب، والطلب من الموبايل الماسك صاحب الدور
-        if (screen != AppScreen.game || phase != CardPhase.back) return;
+        if (paused || screen != AppScreen.game || phase != CardPhase.back) return;
         if (player != currentIndex || claims[currentIndex] != device) return;
         if (!_debounce()) return;
         _drawCard();
         break;
       case 'clap':
         // مسموح بس: التصفيق مفتوح، والطلب من الموبايل الماسك اللاعب ده، وأول ضغطة ليه
-        if (screen != AppScreen.game || player == null || claims[player] != device) return;
+        if (paused || screen != AppScreen.game || player == null || claims[player] != device) return;
         registerClap(player);
         break;
       default:
@@ -1415,6 +1656,11 @@ class GameController extends ChangeNotifier {
       case 'chatDel':
         chatView.removeWhere((m) => m.id == data['id']);
         break;
+      case 'coinResult':
+        if (data['device'] != deviceId) return;
+        final waiter = _coinWaiters.remove(data['id']);
+        waiter?.complete(data['error'] as String?);
+        return;
       case 'chatReject':
         if (data['device'] != deviceId) return;
         final pending = pendingChat[data['id']];
@@ -1539,6 +1785,9 @@ class GameController extends ChangeNotifier {
       'event': lastEvent?.toJson(),
       'claims': {for (final e in claims.entries) '${e.key}': e.value},
       'status': roomStatus,
+      'paused': paused,
+      'eco': economy.toJson(),
+      'coinFx': [for (final c in coinFx) [c.id, c.player, c.delta]],
       'lobby': [
         for (final e in lobby.entries)
           {'d': e.key, 'n': e.value.name, 'on': nowMs - e.value.lastSeen < 50000, if (chat.muted.contains(e.key)) 'm': true},
@@ -1619,6 +1868,15 @@ class GameController extends ChangeNotifier {
     final qEnds = (s['qEnds'] as num?)?.toInt();
     questionEndsAt = qEnds == null ? null : DateTime.fromMillisecondsSinceEpoch(qEnds - clockOffset);
     answerShown = s['answerShown'] as bool? ?? false;
+    paused = s['paused'] as bool? ?? false;
+    final eco = s['eco'];
+    if (eco is Map) economy.applyJson(eco);
+    final fx = s['coinFx'];
+    if (fx is List) {
+      coinFx
+        ..clear()
+        ..addAll([for (final c in fx) if (c is List && c.length == 3) CoinFx((c[0] as num).toInt(), (c[1] as num).toInt(), (c[2] as num).toInt())]);
+    }
     turns
       ..clear()
       ..addAll([for (final t in (s['turns'] as List? ?? [])) TurnRecord.fromJson(t as Map)]);

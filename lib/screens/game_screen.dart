@@ -20,6 +20,7 @@ import '../widgets/common.dart';
 import '../widgets/game_fx.dart';
 import '../widgets/game_panels.dart';
 import '../widgets/player_seat.dart';
+import '../widgets/wallet_panel.dart';
 import '../widgets/qr_dialog.dart';
 
 class GameScreen extends StatelessWidget {
@@ -434,6 +435,18 @@ class _StatusChips extends StatelessWidget {
           onTap: game.toggleAnswer,
           child: _chip(game.t(game.answerShown ? UiText.hideAnswer : UiText.showAnswer), AppColors.green),
         ),
+      // الكوينز: المحفظة (أرصدة، عمليات، تحويل، تحديات)
+      if (game.coinsOn)
+        GestureDetector(
+          onTap: () => showWalletSheet(context, game),
+          child: _chip('🪙 ${game.t(game.economy.config.name)}', AppColors.yellow),
+        ),
+      // الهوست: إيقاف/تكملة اللعبة
+      if (game.isHost)
+        GestureDetector(
+          onTap: game.togglePause,
+          child: _chip(game.t(game.paused ? UiText.resumeGame : UiText.pauseGame), game.paused ? AppColors.green : AppColors.paper),
+        ),
       // الهوست: يعدّي دور لاعب من غير ما يسحب
       if (game.canSkipPlayer)
         GestureDetector(
@@ -587,11 +600,13 @@ class _TableState extends State<_Table> {
   final List<Widget> _fx = [];  // الأنيميشن الشغالة دلوقتي
   int _fxCounter = 0;
   int _lastEventId = 0;
+  int _lastCoinFx = 0;
 
   @override
   void initState() {
     super.initState();
     _lastEventId = game.lastEvent?.id ?? 0; // مانشغلش أنيميشن لحدث قديم
+    _lastCoinFx = game.coinFx.isEmpty ? 0 : game.coinFx.last.id;
     game.addListener(_onGameChanged);
   }
 
@@ -614,10 +629,32 @@ class _TableState extends State<_Table> {
 
   /// حدث جديد → نشغّل الأنيميشن بتاعته (بعد ما الشاشة تترسم عشان نعرف الأماكن)
   void _onGameChanged() {
+    // تغييرات الكوينز: "-50" أحمر أو "+25" أخضر فوق اسم اللاعب
+    final newCoins = game.coinFx.where((c) => c.id > _lastCoinFx).toList();
+    if (newCoins.isNotEmpty) {
+      _lastCoinFx = newCoins.last.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _playCoins(newCoins));
+    }
     final event = game.lastEvent;
     if (event == null || event.id == _lastEventId) return;
     _lastEventId = event.id;
     WidgetsBinding.instance.addPostFrameCallback((_) => _play(event));
+  }
+
+  void _playCoins(List<CoinFx> changes) {
+    if (!mounted) return;
+    for (final c in changes) {
+      final seat = _centerOf(_seatKey(c.player));
+      if (seat == null) continue;
+      _addFx((key, done) => FxFloatingLabel(
+            key: key,
+            at: seat + const Offset(0, 22),
+            text: '${c.delta > 0 ? '+' : ''}${c.delta} 🪙',
+            color: c.delta > 0 ? AppColors.green : AppColors.orange,
+            delay: const Duration(milliseconds: 450), // بعد أنيميشن الكارت
+            onDone: done,
+          ));
+    }
   }
 
   Offset? _centerOf(GlobalKey key) {
@@ -790,6 +827,7 @@ class _TableState extends State<_Table> {
             : null,
         vertical: vertical,
         turnLabel: game.t(UiText.yourTurn),
+        coins: game.coinsOn ? CoinAmount(game: game, amount: game.economy.balanceOf(index), size: 10) : null,
         // الهوست: وقت الاختيار الدوسة بتختار الخسران، وغير كده بتفتح تصحيح الكروت
         onTap: () {
           if (game.canPickLoser) {

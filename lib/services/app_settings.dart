@@ -1,5 +1,5 @@
 // =================================================================
-// إعدادات اللعبة العامة اللي الأدمن بيغيّرها (الأونلاين + الشات + الرسايل الصوتية)
+// إعدادات اللعبة العامة اللي الأدمن بيغيّرها (الأونلاين + الشات + الرسايل الصوتية + الكوينز)
 // (دي إعدادات الأدمن بس - مفيش أي بيانات من القعدات نفسها بتتحفظ)
 // -----------------------------------------------------------------
 // - بتتحفظ في Supabase (جدول karta_settings، صف واحد id = 'global')
@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config.dart';
+import '../game/economy.dart';
 
 class AppSettings {
   // ---------------- الأونلاين ----------------
@@ -27,6 +28,10 @@ class AppSettings {
   final bool voiceOnline;        // تسجيل رسايل صوتية في القعدات الأونلاين
   final int voiceMaxSeconds;     // أقصى مدة للتسجيل (الصوت بيتبعت جوه الرسالة ومابيتحفظش)
 
+  // ---------------- الكوينز (نسخة لموبايل واحد ونسخة للأونلاين) ----------------
+  final EconomyConfig economyOffline;
+  final EconomyConfig economyOnline;
+
   const AppSettings({
     this.onlineEnabled = true,
     this.chatOnline = true,
@@ -34,7 +39,12 @@ class AppSettings {
     this.chatPerMinute = 20,
     this.voiceOnline = true,
     this.voiceMaxSeconds = 30,
+    this.economyOffline = const EconomyConfig(),
+    this.economyOnline = const EconomyConfig(),
   });
+
+  /// إعدادات الكوينز للوضع ده
+  EconomyConfig economyFor({required bool online}) => online ? economyOnline : economyOffline;
 
   /// الحدود المسموحة (الأدمن مايقدرش يحط قيمة برا المدى ده)
   static const chatLengthRange = (50, 1000);
@@ -52,13 +62,14 @@ class AppSettings {
           'online': voiceOnline,
           'maxSeconds': voiceMaxSeconds,
         },
+        'economy': {'offline': economyOffline.toJson(), 'online': economyOnline.toJson()},
       };
 
   factory AppSettings.fromJson(Map<String, dynamic>? json) {
     const d = AppSettings();
     if (json == null) return d;
     Map<String, dynamic> section(String key) => json[key] is Map ? Map<String, dynamic>.from(json[key] as Map) : {};
-    final online = section('online'), chat = section('chat'), voice = section('voice');
+    final online = section('online'), chat = section('chat'), voice = section('voice'), economy = section('economy');
     bool flag(Map<String, dynamic> m, String key, bool fallback) => m[key] is bool ? m[key] as bool : fallback;
     int number(Map<String, dynamic> m, String key, int fallback, (int, int) range) {
       final value = (m[key] as num?)?.toInt() ?? fallback;
@@ -72,6 +83,8 @@ class AppSettings {
       chatPerMinute: number(chat, 'perMinute', d.chatPerMinute, chatPerMinuteRange),
       voiceOnline: flag(voice, 'online', d.voiceOnline),
       voiceMaxSeconds: number(voice, 'maxSeconds', d.voiceMaxSeconds, voiceSecondsRange),
+      economyOffline: EconomyConfig.fromJson(economy['offline']),
+      economyOnline: EconomyConfig.fromJson(economy['online']),
     );
   }
 
@@ -82,6 +95,8 @@ class AppSettings {
     int? chatPerMinute,
     bool? voiceOnline,
     int? voiceMaxSeconds,
+    EconomyConfig? economyOffline,
+    EconomyConfig? economyOnline,
   }) =>
       AppSettings.fromJson({
         ...AppSettings(
@@ -91,6 +106,8 @@ class AppSettings {
           chatPerMinute: chatPerMinute ?? this.chatPerMinute,
           voiceOnline: voiceOnline ?? this.voiceOnline,
           voiceMaxSeconds: voiceMaxSeconds ?? this.voiceMaxSeconds,
+          economyOffline: economyOffline ?? this.economyOffline,
+          economyOnline: economyOnline ?? this.economyOnline,
         ).toJson(),
       });
 

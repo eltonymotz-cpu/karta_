@@ -95,7 +95,7 @@ class RoomService {
   void sendState(Map<String, dynamic> state) => _send('state', state);
 
   /// أسماء الأحداث الصغيرة اللي الهوست بيبعتها (الشات)
-  static const eventNames = ['chat', 'chatDel', 'chatReject'];
+  static const eventNames = ['chat', 'chatDel', 'chatReject', 'coinResult'];
 
   /// الهوست بيبعت حدث صغير (رسالة شات مثلاً)
   void sendEvent(String event, Map<String, dynamic> data) {

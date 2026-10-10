@@ -18,6 +18,7 @@ import '../widgets/card_face.dart';
 import '../widgets/common.dart';
 import 'card_library_screen.dart';
 import 'asset_library_screen.dart';
+import 'economy_settings_screen.dart';
 import 'online_settings_screen.dart';
 
 // =================================================================
@@ -158,6 +159,13 @@ class _AdminScreenState extends State<AdminScreen> {
                     label: '🖼 ${game.t(UiText.assetLibrary)}',
                     color: AppColors.purple,
                     onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AssetLibraryScreen(game: game))),
+                  ),
+                  const SizedBox(height: 12),
+                  // إعدادات الكوينز (موبايل واحد + أونلاين)
+                  BrutalButton(
+                    label: '🪙 ${game.t(EcoText.title)}',
+                    color: AppColors.yellow,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EconomySettingsScreen(game: game))),
                   ),
                   const SizedBox(height: 12),
                   // إعدادات الأونلاين والشات والرسايل الصوتية

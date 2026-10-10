@@ -72,6 +72,25 @@ class BigCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                // اللعبة واقفة مؤقتاً: طبقة فوق الكارت (والضغط عليه مالوش تأثير)
+                if (game.paused)
+                  Positioned.fill(
+                    right: shadow,
+                    bottom: shadow,
+                    child: IgnorePointer(
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(color: AppColors.bg.withValues(alpha: 0.82), borderRadius: BorderRadius.circular(Brutal.radius)),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('⏸', style: TextStyle(fontSize: w * 0.22)),
+                            Text(game.t(UiText.gamePaused), textAlign: TextAlign.center, style: pixelStyle(size: w * 0.07)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 // الإجابة: بتظهر للكل لما الهوست يكشفها (بحركة ناعمة)
                 if (card != null && game.answerShown && game.currentRule?.answer != null)
                   Positioned(
