@@ -1,0 +1,44 @@
+# =================================================================
+# بناء نسخة الآيفون ورفعها على TestFlight من غير Mac (Codemagic)
+# -----------------------------------------------------------------
+# الخطوات (مرة واحدة):
+# 1) codemagic.io → سجّل بحساب GitHub → Add application → اختار الريبو ده (Flutter App).
+# 2) App Store Connect → Users and Access → Integrations → App Store Connect API → اعمل Key
+#    (صلاحية App Manager) ونزّل ملف الـ .p8
+# 3) في Codemagic: Team settings → Integrations → Developer Portal → ضيف الـ Key
+#    باسم karta_asc (اسمه لازم يبقى زي اللي تحت).
+# 4) App Store Connect → Apps → + → New App بنفس الـ Bundle ID: com.karta.karta
+#    (لو الـ Bundle ID ده مش متاح، غيّره هنا وفي ios/Runner.xcodeproj/project.pbxproj)
+# 5) شغّل الـ workflow اللي اسمه ios-testflight من Codemagic.
+# التوقيع (الشهادات والـ provisioning) بيتعمل أوتوماتيك عن طريق الـ Key.
+# =================================================================
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: karta_asc
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.karta.karta
+    scripts:
+      - name: Packages
+        script: flutter pub get
+      - name: Tests
+        script: flutter test
+      - name: Signing
+        script: xcode-project use-profiles
+      - name: Build IPA
+        # رقم البناء بيزيد أوتوماتيك مع كل بناء (TestFlight مابيقبلش نفس الرقم مرتين)
+        script: flutter build ipa --release --build-number=$(($(date +%s) / 60)) --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
