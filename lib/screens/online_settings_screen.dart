@@ -144,20 +144,13 @@ class _OnlineSettingsScreenState extends State<OnlineSettingsScreen> {
                   ),
                   const SizedBox(height: 16),
                   RetroWindow(
-                    title: '🎤 ${game.t(UiText.voiceNote)}',
+                    title: '😀 ${game.t(UiText.reactionsTitle)}',
                     barColor: AppColors.pink,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _switch(game.t(UiText.voiceOnlineLabel), _s.voiceOnline, (v) => _s = _s.copyWith(voiceOnline: v)),
-                        _stepper(
-                          game.t(UiText.voiceMaxSeconds),
-                          _s.voiceMaxSeconds,
-                          AppSettings.voiceSecondsRange,
-                          5,
-                          (v) => _s = _s.copyWith(voiceMaxSeconds: v),
-                        ),
-                        Text(game.t(UiText.formatsNote), style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                        _switch(game.t(UiText.reactionsLabel), _s.reactionsEnabled, (v) => _s = _s.copyWith(reactionsEnabled: v)),
+                        Text(game.t(UiText.reactionsHint), style: TextStyle(fontSize: 12, color: AppColors.muted)),
                         const SizedBox(height: 6),
                         Text(
                           game.t(UiText.nothingSavedNote),

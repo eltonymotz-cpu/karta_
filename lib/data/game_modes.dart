@@ -217,7 +217,9 @@ class CardRule {
   final String? updatedAt;   // آخر تعديل من لوحة الأدمن
   final bool? clapButton;    // زرار التصفيق على الكارت (null = حسب النوع: كروت التصفيق بس)
   final ClapButtonStyle clapStyle; // شكل زرار التصفيق
-  final LText? answer;       // الإجابة (اختياري): مخفية لحد ما الهوست يكشفها للكل
+  final LText? answer;       // الإجابة (اختياري): الكارت بيبقى "كارت سؤال": يتقلب على السؤال، ودوسة تكشف الإجابة
+  final int? cost;           // تمن الكارت في الأنماط اللي بالفلوس (اللي ياخده يدفعه)
+  final bool? passAround;    // دور جوه الكارت (وزن وقافية، براندات...): سهم بيلف على اللاعيبة (null = الكروت اللي بمؤقت)
 
   const CardRule({
     required this.emoji,
@@ -235,7 +237,12 @@ class CardRule {
     this.clapButton,
     this.clapStyle = const ClapButtonStyle(),
     this.answer,
+    this.cost,
+    this.passAround,
   });
+
+  /// الكارت ده فيه دور بيلف جوه الكارت (سهم على اللاعب اللي عليه الدور)؟
+  bool get hasPassAround => passAround ?? timed;
 
   /// هل زرار التصفيق ظاهر على الكارت ده؟
   bool get hasClapButton => clapButton ?? type == RuleType.clap;
@@ -281,6 +288,9 @@ class CardRule {
     ClapButtonStyle? clapStyle,
     LText? answer,
     bool clearAnswer = false,
+    int? cost,
+    bool clearCost = false,
+    bool? passAround,
   }) {
     return CardRule(
       emoji: emoji ?? this.emoji,
@@ -298,6 +308,8 @@ class CardRule {
       clapButton: clapButton ?? this.clapButton,
       clapStyle: clapStyle ?? this.clapStyle,
       answer: clearAnswer ? null : (answer ?? this.answer),
+      cost: clearCost ? null : (cost ?? this.cost),
+      passAround: passAround ?? this.passAround,
     );
   }
 
@@ -321,6 +333,8 @@ class CardRule {
       if (clapButton != null) 'clapButton': clapButton,
       if (clapStyleJson.isNotEmpty) 'clapStyle': clapStyleJson,
       if (answer != null) 'answer': answer!.toJson(),
+      if (cost != null) 'cost': cost,
+      if (passAround != null) 'passAround': passAround,
     };
   }
 
@@ -341,6 +355,8 @@ class CardRule {
         clapButton: json['clapButton'] as bool?,
         clapStyle: ClapButtonStyle.fromJson(json['clapStyle'] is Map ? Map<String, dynamic>.from(json['clapStyle'] as Map) : null),
         answer: json['answer'] is Map ? LText.fromJson(Map<String, dynamic>.from(json['answer'] as Map)) : null,
+        cost: (json['cost'] as num?)?.toInt().clamp(0, 1000000),
+        passAround: json['passAround'] as bool?,
       );
 }
 
@@ -372,6 +388,7 @@ class GameMode {
   final Map<String, CardRule> rules;   // المفتاح = قيمة الكارت
   final List<ExtraCard> extraCards;    // كروت زيادة غير الـ 13 (الأدمن بيضيفها)
   final String? image;                 // صورة النمط (base64) - الأدمن بيرفعها
+  final bool money;                    // النمط ده بالفلوس؟ (اللي ياخد كارت يدفع تمنه) - غير كده بالنقط (عدد الكروت)
 
   const GameMode({
     required this.emoji,
@@ -381,7 +398,20 @@ class GameMode {
     required this.rules,
     this.extraCards = const [],
     this.image,
+    this.money = false,
   });
+
+  /// نسخة معدّلة من النمط
+  GameMode copyWith({Map<String, CardRule>? rules, List<ExtraCard>? extraCards, String? image, bool clearImage = false, bool? money}) => GameMode(
+        emoji: emoji,
+        name: name,
+        description: description,
+        basedOn: basedOn,
+        rules: rules ?? this.rules,
+        extraCards: extraCards ?? this.extraCards,
+        image: clearImage ? null : (image ?? this.image),
+        money: money ?? this.money,
+      );
 
   /// تحويل لـ JSON (الأنماط اللي الأدمن بيضيفها بتتحفظ بالشكل ده)
   Map<String, dynamic> toJson() => {
@@ -391,6 +421,7 @@ class GameMode {
         'rules': {for (final e in rules.entries) e.key: e.value.toJson()},
         if (extraCards.isNotEmpty) 'extras': [for (final x in extraCards) x.toJson()],
         if (image != null) 'image': image,
+        if (money) 'money': true,
       };
 
   /// قراءة من JSON
@@ -408,6 +439,7 @@ class GameMode {
         for (final x in (json['extras'] as List? ?? [])) ExtraCard.fromJson(Map<String, dynamic>.from(x as Map)),
       ],
       image: json['image'] as String?,
+      money: json['money'] as bool? ?? false,
     );
   }
 }
@@ -650,6 +682,7 @@ GameMode completeMode(String modeId) {
     rules: {for (final rank in cardRanks) rank: getRule(modeId, rank)},
     extraCards: mode.extraCards,
     image: mode.image,
+    money: mode.money,
   );
 }
 
@@ -674,6 +707,7 @@ GameMode modeWithCard(
       rules: {...mode.rules, label: newRule!},
       extraCards: mode.extraCards,
       image: mode.image,
+      money: mode.money,
     );
   }
   final extras = [...mode.extraCards];
@@ -696,5 +730,6 @@ GameMode modeWithCard(
     rules: mode.rules,
     extraCards: extras,
     image: mode.image,
+    money: mode.money,
   );
 }

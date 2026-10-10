@@ -1,13 +1,16 @@
 // الكوينز جوه اللعبة نفسها: ضريبة لما حد ياخد كارت، رجوعها مع التصحيح، صلاحيات موبايلات اللاعيبة،
 // الإيقاف المؤقت، ونهاية اللعبة
 import 'package:flutter_test/flutter_test.dart';
+import 'package:karta/data/game_modes.dart';
 import 'package:karta/game/economy.dart';
 import 'package:karta/game/game_controller.dart';
 import 'package:karta/models.dart';
 
+/// نمط بالفلوس (نسخة من الكلاسيك والأدمن فاتح فيه "بالفلوس")
 GameController newGame(List<PlayingCard> deck) {
+  customModes['money'] = completeMode('classic').copyWith(money: true);
   final game = GameController()..sound.enabled = false;
-  game.setMode('classic');
+  game.setMode('money');
   game.startGame(['A', 'B', 'C']);
   game.deck = deck;
   return game;
@@ -17,6 +20,7 @@ Future<void> waitTap() => Future.delayed(const Duration(milliseconds: 300));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  tearDown(() => customModes.clear());
 
   test('taking a card charges the round tax once, a correction refunds it, and nobody-lost does not tax', () async {
     final game = newGame([const PlayingCard('2', '♣'), const PlayingCard('K', '♠'), const PlayingCard('K', '♥')]);

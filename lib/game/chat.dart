@@ -11,55 +11,14 @@
 // ⚠️ مفيش أي حاجة من الشات بتتحفظ: الرسايل في ذاكرة الموبايلات بس،
 //    وبتتمسح أول ما اللعبة تتقفل.
 // =================================================================
-import 'dart:convert';
-import 'dart:typed_data';
-
 /// مكان الرسالة: lobby = في الانتظار قبل اللعب، game = أثناء اللعب
 enum ChatContext { lobby, game }
-
-/// رسالة صوتية: الصوت نفسه (مضغوط) جوه الرسالة - مش رابط ومش ملف على سيرفر
-class VoiceAttachment {
-  static const allowedMimes = {'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/aac', 'audio/mpeg', 'audio/wav'};
-  static const maxDataLength = 240 * 1024; // حد قناة القعدة حوالي 250 KB
-
-  final String data;       // الصوت base64 (فاضي = مبقاش متاح، زي لما حد يدخل متأخر)
-  final String mime;
-  final int durationMs;
-  const VoiceAttachment({required this.data, required this.mime, required this.durationMs});
-
-  factory VoiceAttachment.fromBytes(Uint8List bytes, String mime, int durationMs) =>
-      VoiceAttachment(data: base64Encode(bytes), mime: mime, durationMs: durationMs);
-
-  bool get available => data.isNotEmpty;
-  Uint8List get bytes => base64Decode(data);
-
-  /// withData = false: من غير الصوت نفسه (لتاريخ الشات، عشان الرسالة تفضل صغيرة)
-  Map<String, dynamic> toJson({bool withData = true}) => {if (withData) 'b': data, 'mime': mime, 'ms': durationMs};
-
-  static VoiceAttachment? fromJson(Object? json) {
-    if (json is! Map) return null;
-    final data = json['b'] ?? '';
-    final mime = json['mime'];
-    final ms = json['ms'];
-    if (data is! String || mime is! String || ms is! num) return null;
-    if (!allowedMimes.contains(mime) || data.length > maxDataLength || ms <= 0 || ms > 120000) return null;
-    if (data.isNotEmpty) {
-      try {
-        base64Decode(data); // لازم يكون base64 سليم
-      } catch (_) {
-        return null;
-      }
-    }
-    return VoiceAttachment(data: data, mime: mime, durationMs: ms.toInt());
-  }
-}
 
 class ChatMessage {
   final String id;          // رقم مميز بيعمله اللي بعت (لمنع التكرار)
   final String device;      // الموبايل اللي بعت
   final String name;        // اسم اللي بعت
   final String text;        // الكلام (فاضي لو رسالة صوتية بس)
-  final VoiceAttachment? voice;
   final ChatContext context;
   final int at;             // وقت القبول بساعة الهوست
   final bool fromHost;
@@ -71,16 +30,14 @@ class ChatMessage {
     required this.text,
     required this.context,
     required this.at,
-    this.voice,
     this.fromHost = false,
   });
 
-  Map<String, dynamic> toJson({bool withVoiceData = true}) => {
+  Map<String, dynamic> toJson() => {
         'id': id,
         'd': device,
         'n': name,
         if (text.isNotEmpty) 't': text,
-        if (voice != null) 'v': voice!.toJson(withData: withVoiceData),
         'c': context.name,
         'at': at,
         if (fromHost) 'h': true,
@@ -95,7 +52,6 @@ class ChatMessage {
       device: device,
       name: name,
       text: json['t'] is String ? json['t'] as String : '',
-      voice: VoiceAttachment.fromJson(json['v']),
       context: json['c'] == 'game' ? ChatContext.game : ChatContext.lobby,
       at: at.toInt(),
       fromHost: json['h'] == true,
@@ -128,7 +84,6 @@ class ChatRoom {
     required bool enabled,
     required int maxLength,
     required int perMinute,
-    VoiceAttachment? voice,
     bool fromHost = false,
   }) {
     if (!enabled) return ChatRejection.disabled;
@@ -136,7 +91,7 @@ class ChatRoom {
     if (_seenIds.contains(id)) return null; // اتبعتت قبل كده (إعادة إرسال): خلاص اتقبلت
     if (!fromHost && muted.contains(device)) return ChatRejection.muted;
     final clean = text.trim();
-    if (clean.isEmpty && voice == null) return ChatRejection.empty;
+    if (clean.isEmpty) return ChatRejection.empty;
     if (clean.length > maxLength) return ChatRejection.tooLong;
 
     // السرعة: آخر دقيقة بس
@@ -152,7 +107,6 @@ class ChatRoom {
       device: device,
       name: cleanName.length > nameMax ? cleanName.substring(0, nameMax) : cleanName,
       text: clean,
-      voice: voice,
       context: context,
       at: now,
       fromHost: fromHost,

@@ -62,6 +62,8 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
   int? _timerSeconds;
   int _copies = 2;
   bool _clapOn = false;
+  bool _passAround = false;
+  final _cost = TextEditingController();
   ClapButtonStyle _clapStyle = const ClapButtonStyle();
 
   // ---------------- الشكل ----------------
@@ -130,6 +132,8 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
     _answerAr.text = rule.answer?.ar ?? '';
     _answerFr.text = rule.answer?.fr ?? '';
     _clapOn = rule.hasClapButton;
+    _passAround = rule.hasPassAround;
+    _cost.text = rule.cost?.toString() ?? '';
     _clapStyle = rule.clapStyle;
     _clapTextAr.text = rule.clapStyle.text?.ar ?? '';
     _clapTextFr.text = rule.clapStyle.text?.fr ?? '';
@@ -173,6 +177,7 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
       _clapTextAr,
       _clapTextFr,
       _clapIcon,
+      _cost,
     ]) {
       c.dispose();
     }
@@ -234,6 +239,8 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
         icon: _clapIcon.text.trim().isEmpty ? '👏' : _clapIcon.text.trim(),
       ),
       answer: optional(_answerAr, _answerFr),
+      cost: int.tryParse(_cost.text.trim())?.clamp(0, 1000000),
+      passAround: _passAround == _timed ? null : _passAround, // نفس الافتراضي = مانحفظوش
     );
   }
 
@@ -554,7 +561,7 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
         _field(game.t(UiText.rulePromptFr), _promptFr, ltr: true),
         _field(game.t(UiText.answerAr), _answerAr),
         _field(game.t(UiText.answerFr), _answerFr, ltr: true),
-        Text(game.t(UiText.answerHint), style: TextStyle(fontSize: 12, color: AppColors.muted)),
+        Text('${game.t(UiText.questionCard)}: ${game.t(UiText.questionCardHint)}', style: TextStyle(fontSize: 12, color: AppColors.muted)),
         const SizedBox(height: 10),
         _label2(game.t(UiText.textAlign)),
         _choices<String>(_align, [
@@ -801,6 +808,7 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
           ], (v) => _timerSeconds = v),
         ],
         const SizedBox(height: 6),
+        _moneyAndTurnSection(),
         _clapSection(),
         if (_isExtra) ...[
           const SizedBox(height: 14),
@@ -812,6 +820,32 @@ class _CardEditorScreenState extends State<CardEditorScreen> {
   }
 
   /// زرار التصفيق: تشغيله + شكله (الأدمن يختار أي كارت يبقى عليه الزرار)
+  /// تمن الكارت (للأنماط اللي بالفلوس) + الدور جوه الكارت
+  Widget _moneyAndTurnSection() {
+    final money = allModes[widget.modeId]?.money ?? false;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          type: MaterialType.transparency,
+          child: SwitchListTile(
+            value: _passAround,
+            onChanged: (v) => setState(() => _passAround = v),
+            title: Text(game.t(UiText.passAroundLabel), style: const TextStyle(fontWeight: FontWeight.w900)),
+            subtitle: Text(game.t(UiText.passAroundHint), style: const TextStyle(fontSize: 12)),
+            activeThumbColor: AppColors.ink,
+            activeTrackColor: AppColors.yellow,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _field('💰 ${game.t(UiText.cardCost)}', _cost),
+        Text(game.t(money ? UiText.cardCostHint : UiText.moneyOnlyNote), style: TextStyle(fontSize: 12, color: AppColors.muted)),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
   Widget _clapSection() {
     final allowed = CardRule.clapAllowedFor(_type);
     final on = _clapOn && allowed;

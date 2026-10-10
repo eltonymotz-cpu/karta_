@@ -20,6 +20,7 @@ import '../widgets/common.dart';
 import '../widgets/game_fx.dart';
 import '../widgets/game_panels.dart';
 import '../widgets/player_seat.dart';
+import '../widgets/reaction_bar.dart';
 import '../widgets/wallet_panel.dart';
 import '../widgets/qr_dialog.dart';
 
@@ -57,6 +58,8 @@ class GameScreen extends StatelessWidget {
                       ],
                       const SizedBox(height: 4),
                       Expanded(child: _Table(game: game)),
+                      // الأزرار السريعة (إيموجي بيظهر في نص اللعبة عند الكل)
+                      ReactionBar(game: game),
                     ],
                   ],
                 ),
@@ -435,6 +438,11 @@ class _StatusChips extends StatelessWidget {
           onTap: game.toggleAnswer,
           child: _chip(game.t(game.answerShown ? UiText.hideAnswer : UiText.showAnswer), AppColors.green),
         ),
+      // الهوست: يحرّك الدور جوه الكارت (وزن وقافية، براندات...)
+      if (game.isHost && game.innerTurn != null) ...[
+        GestureDetector(onTap: () => game.moveInnerTurn(-1), child: _chip(game.t(UiText.prevInner), AppColors.paper)),
+        GestureDetector(onTap: () => game.moveInnerTurn(1), child: _chip(game.t(UiText.nextInner), AppColors.orange)),
+      ],
       // الكوينز: المحفظة (أرصدة، عمليات، تحويل، تحديات)
       if (game.coinsOn)
         GestureDetector(
@@ -601,12 +609,14 @@ class _TableState extends State<_Table> {
   int _fxCounter = 0;
   int _lastEventId = 0;
   int _lastCoinFx = 0;
+  int _lastReaction = 0;
 
   @override
   void initState() {
     super.initState();
     _lastEventId = game.lastEvent?.id ?? 0; // مانشغلش أنيميشن لحدث قديم
     _lastCoinFx = game.coinFx.isEmpty ? 0 : game.coinFx.last.id;
+    _lastReaction = game.reactionFeed.isEmpty ? 0 : game.reactionFeed.last.id;
     game.addListener(_onGameChanged);
   }
 
@@ -631,6 +641,19 @@ class _TableState extends State<_Table> {
   void _onGameChanged() {
     // تغييرات الكوينز: "-50" أحمر أو "+25" أخضر فوق اسم اللاعب
     final newCoins = game.coinFx.where((c) => c.id > _lastCoinFx).toList();
+    // الأزرار السريعة: الإيموجي يطلع في نص الترابيزة (بمكان عشوائي شوية عشان مايتغطوش على بعض)
+    final newReactions = game.reactionFeed.where((r) => r.id > _lastReaction).toList();
+    if (newReactions.isNotEmpty) {
+      _lastReaction = newReactions.last.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final center = _centerOf(_cardKey);
+        if (!mounted || center == null) return;
+        for (final r in newReactions) {
+          final jitter = Offset(((r.id * 37) % 120 - 60).toDouble(), ((r.id * 53) % 60 - 30).toDouble());
+          _addFx((key, done) => FxReaction(key: key, at: center + jitter, emoji: r.emoji, name: r.name, onDone: done));
+        }
+      });
+    }
     if (newCoins.isNotEmpty) {
       _lastCoinFx = newCoins.last.id;
       WidgetsBinding.instance.addPostFrameCallback((_) => _playCoins(newCoins));
@@ -828,6 +851,7 @@ class _TableState extends State<_Table> {
         vertical: vertical,
         turnLabel: game.t(UiText.yourTurn),
         coins: game.coinsOn ? CoinAmount(game: game, amount: game.economy.balanceOf(index), size: 10) : null,
+        pointer: game.innerTurn == index,
         // الهوست: وقت الاختيار الدوسة بتختار الخسران، وغير كده بتفتح تصحيح الكروت
         onTap: () {
           if (game.canPickLoser) {

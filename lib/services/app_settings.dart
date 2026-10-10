@@ -1,5 +1,5 @@
 // =================================================================
-// إعدادات اللعبة العامة اللي الأدمن بيغيّرها (الأونلاين + الشات + الرسايل الصوتية + الكوينز)
+// إعدادات اللعبة العامة اللي الأدمن بيغيّرها (الأونلاين + الشات + الأزرار السريعة + الكوينز)
 // (دي إعدادات الأدمن بس - مفيش أي بيانات من القعدات نفسها بتتحفظ)
 // -----------------------------------------------------------------
 // - بتتحفظ في Supabase (جدول karta_settings، صف واحد id = 'global')
@@ -24,9 +24,8 @@ class AppSettings {
   final int chatMaxLength;       // أقصى طول للرسالة
   final int chatPerMinute;       // أقصى عدد رسايل في الدقيقة لكل لاعب
 
-  // ---------------- الرسايل الصوتية ----------------
-  final bool voiceOnline;        // تسجيل رسايل صوتية في القعدات الأونلاين
-  final int voiceMaxSeconds;     // أقصى مدة للتسجيل (الصوت بيتبعت جوه الرسالة ومابيتحفظش)
+  // ---------------- الأزرار السريعة (إيموجي بيظهر في نص اللعبة) ----------------
+  final bool reactionsEnabled;
 
   // ---------------- الكوينز (نسخة لموبايل واحد ونسخة للأونلاين) ----------------
   final EconomyConfig economyOffline;
@@ -37,8 +36,7 @@ class AppSettings {
     this.chatOnline = true,
     this.chatMaxLength = 300,
     this.chatPerMinute = 20,
-    this.voiceOnline = true,
-    this.voiceMaxSeconds = 30,
+    this.reactionsEnabled = true,
     this.economyOffline = const EconomyConfig(),
     this.economyOnline = const EconomyConfig(),
   });
@@ -49,7 +47,6 @@ class AppSettings {
   /// الحدود المسموحة (الأدمن مايقدرش يحط قيمة برا المدى ده)
   static const chatLengthRange = (50, 1000);
   static const chatPerMinuteRange = (3, 60);
-  static const voiceSecondsRange = (5, 60); // أكتر من كده الرسالة تعدي حد قناة القعدة (حوالي 250 KB)
 
   /// الإعدادات الحالية (بتتحمل أول ما التطبيق يفتح)
   static AppSettings current = const AppSettings();
@@ -58,10 +55,7 @@ class AppSettings {
   Map<String, dynamic> toJson() => {
         'online': {'enabled': onlineEnabled},
         'chat': {'online': chatOnline, 'maxLength': chatMaxLength, 'perMinute': chatPerMinute},
-        'voice': {
-          'online': voiceOnline,
-          'maxSeconds': voiceMaxSeconds,
-        },
+        'reactions': {'enabled': reactionsEnabled},
         'economy': {'offline': economyOffline.toJson(), 'online': economyOnline.toJson()},
       };
 
@@ -69,7 +63,7 @@ class AppSettings {
     const d = AppSettings();
     if (json == null) return d;
     Map<String, dynamic> section(String key) => json[key] is Map ? Map<String, dynamic>.from(json[key] as Map) : {};
-    final online = section('online'), chat = section('chat'), voice = section('voice'), economy = section('economy');
+    final online = section('online'), chat = section('chat'), reactions = section('reactions'), economy = section('economy');
     bool flag(Map<String, dynamic> m, String key, bool fallback) => m[key] is bool ? m[key] as bool : fallback;
     int number(Map<String, dynamic> m, String key, int fallback, (int, int) range) {
       final value = (m[key] as num?)?.toInt() ?? fallback;
@@ -81,8 +75,7 @@ class AppSettings {
       chatOnline: flag(chat, 'online', d.chatOnline),
       chatMaxLength: number(chat, 'maxLength', d.chatMaxLength, chatLengthRange),
       chatPerMinute: number(chat, 'perMinute', d.chatPerMinute, chatPerMinuteRange),
-      voiceOnline: flag(voice, 'online', d.voiceOnline),
-      voiceMaxSeconds: number(voice, 'maxSeconds', d.voiceMaxSeconds, voiceSecondsRange),
+      reactionsEnabled: flag(reactions, 'enabled', d.reactionsEnabled),
       economyOffline: EconomyConfig.fromJson(economy['offline']),
       economyOnline: EconomyConfig.fromJson(economy['online']),
     );
@@ -93,8 +86,7 @@ class AppSettings {
     bool? chatOnline,
     int? chatMaxLength,
     int? chatPerMinute,
-    bool? voiceOnline,
-    int? voiceMaxSeconds,
+    bool? reactionsEnabled,
     EconomyConfig? economyOffline,
     EconomyConfig? economyOnline,
   }) =>
@@ -104,8 +96,7 @@ class AppSettings {
           chatOnline: chatOnline ?? this.chatOnline,
           chatMaxLength: chatMaxLength ?? this.chatMaxLength,
           chatPerMinute: chatPerMinute ?? this.chatPerMinute,
-          voiceOnline: voiceOnline ?? this.voiceOnline,
-          voiceMaxSeconds: voiceMaxSeconds ?? this.voiceMaxSeconds,
+          reactionsEnabled: reactionsEnabled ?? this.reactionsEnabled,
           economyOffline: economyOffline ?? this.economyOffline,
           economyOnline: economyOnline ?? this.economyOnline,
         ).toJson(),

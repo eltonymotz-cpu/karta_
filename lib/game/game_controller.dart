@@ -136,6 +136,14 @@ class CoinFx {
   const CoinFx(this.id, this.player, this.delta);
 }
 
+/// زرار سريع اتداس: إيموجي بيظهر في نص اللعبة عند الكل
+class Reaction {
+  final int id;
+  final String emoji;
+  final String name;
+  const Reaction(this.id, this.emoji, this.name);
+}
+
 /// موبايل في القعدة (اللوبي)
 class LobbyMember {
   final String name;
@@ -148,10 +156,9 @@ class LobbyMember {
 class PendingChat {
   final String id;
   final String text;
-  final VoiceAttachment? voice;
   ChatRejection? failed; // null = بتتبعت
   Timer? timer;
-  PendingChat({required this.id, required this.text, this.voice});
+  PendingChat({required this.id, required this.text});
 }
 
 /// مكان لاعب في الترتيب (الأقل كروت هو الأول، والمتعادلين ليهم نفس المركز)
@@ -206,6 +213,8 @@ class GameController extends ChangeNotifier {
   GameEvent? lastEvent;                 // آخر حدث (للأنيميشن)
   final List<TurnRecord> turns = [];    // كل الأدوار اللي اتلعبت (ساعة كل لاعب)
   bool clapOpen = false;                // مرحلة التصفيق مفتوحة (الضغطات بتتسجل)
+  int? innerTurn;                       // الدور جوه الكارت (وزن وقافية، براندات...): مين عليه الدور دلوقتي
+  List<String> lastClapOrder = [];      // ترتيب آخر تصفيق (بيظهر على ضهر الكارت لحد الكارت الجاي)
 
   // ---------------- الكوينز ----------------
   final Economy economy = Economy();    // الهوست بيحسب، واللاعيبة بيعرضوا اللي جاي منه
@@ -219,6 +228,14 @@ class GameController extends ChangeNotifier {
   Duration? _pausedQuestionLeft;
   Duration? _pausedBombLeft;
   bool _turnPausedByGame = false;
+
+  // ---------------- الأزرار السريعة ----------------
+  /// الـ 5 زراير بتوعي (كل لاعب بيختارهم، وبيتنسوا لما اللعبة تتقفل)
+  List<String> reactionButtons = List.of(defaultReactions);
+  static const defaultReactions = ['😂', '👏', '🔥', '😱', '👀'];
+  final List<Reaction> reactionFeed = [];  // آخر الإيموجي اللي اتبعتت (للأنيميشن)
+  int _reactionSeq = 0;
+  final Map<String, List<int>> _reactionTimes = {}; // الهوست: سرعة كل موبايل
 
   // ---------------- الشات واللوبي ----------------
   final ChatRoom chat = ChatRoom();     // الهوست: الرسايل المقبولة (هو المرجع)
@@ -543,6 +560,9 @@ class GameController extends ChangeNotifier {
     economy.clear();
     coinFx.clear();
     paused = false;
+    reactionFeed.clear();
+    _reactionTimes.clear();
+    reactionButtons = List.of(defaultReactions);
     chatOpen = false;
     chatUnread = 0;
     nickname = '';
@@ -600,10 +620,14 @@ class GameController extends ChangeNotifier {
     clapOpen = false;
     answerShown = false;
     paused = false;
+    innerTurn = null;
+    lastClapOrder = [];
     _pausedQuestionLeft = null;
     _pausedBombLeft = null;
     // الكوينز: رصيد جديد لكل لاعب في كل لعبة (ومفيش حاجة بتتحفظ بعد اللعبة)
-    economy.start(names.length, AppSettings.current.economyFor(online: multiDevice), nowMs);
+    // الفلوس بس في الأنماط اللي الأدمن فاتح فيها "بالفلوس"، وإلا اللعب بالنقط (عدد الكروت)
+    final ecoConfig = AppSettings.current.economyFor(online: multiDevice);
+    economy.start(names.length, ecoConfig.copyWith({'enabled': ecoConfig.enabled && mode.money}), nowMs);
     coinFx.clear();
     log.clear();
     // لو عدد اللاعيبة قل، نشيل المسكات اللي لأرقام مبقتش موجودة
@@ -730,6 +754,8 @@ class GameController extends ChangeNotifier {
     answerShown = false;
     clapTaps.clear();
     clapOpen = false;
+    lastClapOrder = [];
+    innerTurn = rule.hasPassAround ? currentIndex : null; // السهم بيبدأ عند صاحب الكارت
     _startTurn(card.label);
     _silentBeforeDraw = silentIndex;
     _silentCardBeforeDraw = silentCard;
@@ -782,6 +808,15 @@ class GameController extends ChangeNotifier {
 
   /// الضغطة التانية على الكارت (بعد ما اتقلب)
   void _continueFromFront() {
+    // كارت سؤال: أول دوسة بتكشف الإجابة للكل، والدوسة اللي بعدها تكمّل (اختيار الخسران)
+    if (currentRule?.answer != null && !answerShown) {
+      _stopQuestionTimer();
+      answerShown = true;
+      _addLog(UiText.logAnswerShown, {'answer': currentRule!.answer!});
+      sound.play(Sfx.ding);
+      notifyListeners();
+      return;
+    }
     _stopQuestionTimer(); // الدور خلص: نوقف مؤقت السؤال
     switch (currentRule!.type) {
       case RuleType.assign:
@@ -1086,6 +1121,7 @@ class GameController extends ChangeNotifier {
     if (!clapOpen) return;
     clapOpen = false;
     if (clapTaps.isNotEmpty) {
+      lastClapOrder = [for (final t in clapTaps) if (t.player < players.length) players[t.player].name];
       _coin(economy.reward('clap$_cardSeq', clapTaps.first.player, economy.config.rewardClapFirst, 'clapFirst', nowMs));
       _addLog(UiText.logClapResult, {
         'first': players[clapTaps.first.player].name,
@@ -1103,6 +1139,64 @@ class GameController extends ChangeNotifier {
   }
 
   // =================================================================
+  // الأزرار السريعة: كل لاعب بيدوس إيموجي فيظهر في نص اللعبة عند الكل
+  // (مابيتحفظش في أي مكان، والهوست بيتأكد من الإيموجي والسرعة)
+  // =================================================================
+
+  /// الزراير متاحة؟ (الأدمن ممكن يقفلها)
+  bool get reactionsOn => AppSettings.current.reactionsEnabled && screen == AppScreen.game;
+
+  /// إيموجي مقبول: كلام قصير مفيهوش حروف أو أرقام (عشان محدش يبعت رسايل من هنا)
+  static bool isValidReaction(Object? emoji) {
+    if (emoji is! String) return false;
+    final text = emoji.trim();
+    if (text.isEmpty || text.runes.length > 8) return false;
+    return !RegExp(r'[A-Za-z0-9؀-ۿ<>]').hasMatch(text);
+  }
+
+  /// تغيير زرار من الـ 5
+  void setReactionButton(int index, String emoji) {
+    if (index < 0 || index >= reactionButtons.length || !isValidReaction(emoji)) return;
+    reactionButtons[index] = emoji.trim();
+    notifyListeners();
+  }
+
+  /// دوست زرار: الهوست بيعرضه ويبعته للكل، واللاعب بيبعته للهوست
+  void sendReaction(String emoji) {
+    if (!reactionsOn || !isValidReaction(emoji)) return;
+    if (isHost) {
+      _acceptReaction(emoji, chatName, deviceId);
+    } else {
+      room?.sendAction({'type': 'react', 'device': deviceId, 'name': chatName, 'emoji': emoji.trim()});
+    }
+  }
+
+  /// الهوست: يقبل الإيموجي (أقصى واحد كل 0.6 ثانية و 30 في الدقيقة لكل موبايل)
+  bool _acceptReaction(Object? emoji, String name, String device) {
+    if (!AppSettings.current.reactionsEnabled || !isValidReaction(emoji) || chat.muted.contains(device)) return false;
+    final now = nowMs;
+    final times = _reactionTimes.putIfAbsent(device, () => []);
+    times.removeWhere((t) => now - t > 60000);
+    if (times.isNotEmpty && now - times.last < 600) return false;
+    if (times.length >= 30) return false;
+    times.add(now);
+    final text = (emoji as String).trim();
+    _pushReaction(text, name);
+    room?.sendEvent('react', {'e': text, 'n': name});
+    return true;
+  }
+
+  void _pushReaction(String emoji, String name) {
+    reactionFeed.add(Reaction(++_reactionSeq, emoji, name));
+    if (reactionFeed.length > 20) reactionFeed.removeAt(0);
+    notifyListeners();
+  }
+
+  /// للاختبارات: الهوست بيستقبل إيموجي من موبايل
+  @visibleForTesting
+  bool acceptReactionForTest(Object? emoji, String name, String device) => _acceptReaction(emoji, name, device);
+
+  // =================================================================
   // الكوينز
   // =================================================================
 
@@ -1112,7 +1206,8 @@ class GameController extends ChangeNotifier {
   /// ضريبة الخسارة + التحديات (للاعب اللي خد كارت)
   void _loseCoins(String roundKey, int player, String card) {
     if (isViewer) return;
-    _coins(economy.settleRound(roundKey, [player], category: currentRule?.category, turnPlayer: currentIndex, card: card, now: nowMs));
+    _coins(economy.settleRound(roundKey, [player],
+        category: currentRule?.category, turnPlayer: currentIndex, card: card, amount: currentRule?.cost, now: nowMs));
     _coins(economy.onCardTaken(player, nowMs));
   }
 
@@ -1275,6 +1370,24 @@ class GameController extends ChangeNotifier {
   }
 
   // =================================================================
+  // الدور جوه الكارت: سهم بيلف على اللاعيبة والهوست بيحركه
+  // (مؤقت السؤال بيبدأ من الأول مع كل لاعب)
+  // =================================================================
+  void moveInnerTurn(int step) {
+    final current = innerTurn;
+    if (isViewer || current == null || players.isEmpty || paused) return;
+    innerTurn = (current + step) % players.length;
+    if (innerTurn! < 0) innerTurn = innerTurn! + players.length;
+    final rule = currentRule;
+    if (rule != null && rule.timed && phase == CardPhase.front) {
+      final seconds = questionSecondsFor(rule);
+      if (seconds > 0) _startQuestionTimer(seconds);
+    }
+    sound.play(Sfx.tick);
+    notifyListeners();
+  }
+
+  // =================================================================
   // الإجابة: الهوست بيكشفها للكل
   // =================================================================
   void toggleAnswer() {
@@ -1320,6 +1433,7 @@ class GameController extends ChangeNotifier {
     answerShown = false;
     clapOpen = false;
     clapTaps.clear();
+    innerTurn = null;
     if (deck.isEmpty) {
       finishGame();
       return;
@@ -1451,6 +1565,9 @@ class GameController extends ChangeNotifier {
       case 'chat':
         _receiveChat(action, device);
         break;
+      case 'react':
+        _acceptReaction(action['emoji'], lobby[device]?.name ?? _cleanName(action['name']), device);
+        break;
       // الكوينز: كل طلب لازم يكون من الموبايل الماسك اللاعب اللي بيدفع/بيرد
       case 'coinTransfer':
       case 'challenge':
@@ -1505,10 +1622,10 @@ class GameController extends ChangeNotifier {
 
   /// بعت رسالة (كلام أو صوت). الهوست بيضيفها على طول، واللاعب بيبعتها للهوست.
   /// بترجع سبب الرفض لو اترفضت عند الهوست نفسه.
-  ChatRejection? sendChat(String text, {VoiceAttachment? voice}) {
+  ChatRejection? sendChat(String text) {
     final settings = AppSettings.current;
     final clean = text.trim();
-    if (clean.isEmpty && voice == null) return ChatRejection.empty;
+    if (clean.isEmpty) return ChatRejection.empty;
     if (clean.length > settings.chatMaxLength) return ChatRejection.tooLong;
     final id = '$deviceId-${DateTime.now().millisecondsSinceEpoch}-${_chatSeq++}';
     if (isHost) {
@@ -1517,7 +1634,6 @@ class GameController extends ChangeNotifier {
         device: deviceId,
         name: chatName,
         text: clean,
-        voice: voice,
         context: _chatContext,
         now: nowMs,
         enabled: chatAvailable,
@@ -1531,7 +1647,7 @@ class GameController extends ChangeNotifier {
       }
       return rejected;
     }
-    final pending = PendingChat(id: id, text: clean, voice: voice);
+    final pending = PendingChat(id: id, text: clean);
     pendingChat[id] = pending;
     _sendPending(pending);
     notifyListeners();
@@ -1559,7 +1675,6 @@ class GameController extends ChangeNotifier {
       'name': chatName,
       'id': pending.id,
       'text': pending.text,
-      if (pending.voice != null) 'voice': pending.voice!.toJson(),
     });
     // لو الهوست مردش في 6 ثواني: الرسالة "ماوصلتش" وتقدر تعيد
     pending.timer?.cancel();
@@ -1582,7 +1697,6 @@ class GameController extends ChangeNotifier {
       device: device,
       name: lobby[device]?.name ?? _cleanName(action['name']),
       text: text is String ? text : '',
-      voice: VoiceAttachment.fromJson(action['voice']),
       context: _chatContext,
       now: nowMs,
       enabled: chatAvailable,
@@ -1656,6 +1770,11 @@ class GameController extends ChangeNotifier {
       case 'chatDel':
         chatView.removeWhere((m) => m.id == data['id']);
         break;
+      case 'react':
+        final emoji = data['e'], name = data['n'];
+        if (!isValidReaction(emoji) || name is! String) return;
+        _pushReaction(emoji as String, name);
+        break;
       case 'coinResult':
         if (data['device'] != deviceId) return;
         final waiter = _coinWaiters.remove(data['id']);
@@ -1701,9 +1820,8 @@ class GameController extends ChangeNotifier {
       for (final raw in history) {
         final m = ChatMessage.fromJson(raw);
         if (m != null) {
-          // لو الصوت عندي خلاص (وصل لايف) مانبدلوش بالنسخة اللي من غير صوت
           final mine = byId[m.id];
-          if (mine == null || !(mine.voice?.available ?? false)) byId[m.id] = m;
+          if (mine == null) byId[m.id] = m;
           pendingChat.remove(m.id)?.timer?.cancel();
         }
       }
@@ -1741,8 +1859,7 @@ class GameController extends ChangeNotifier {
   void _broadcastState({bool withChat = false}) {
     final snapshot = _toSnapshot();
     // الشات القديم بيتبعت بس لما حد يدخل/يرجع (مش مع كل تغيير، عشان الرسايل تفضل صغيرة وسريعة)
-    // (الصوت نفسه مابيتبعتش في التاريخ عشان الرسالة تفضل تحت حد القناة)
-    if (withChat) snapshot['chat'] = [for (final m in chat.messages) m.toJson(withVoiceData: false)];
+    if (withChat) snapshot['chat'] = [for (final m in chat.messages) m.toJson()];
     room?.sendState(snapshot);
   }
 
@@ -1786,6 +1903,8 @@ class GameController extends ChangeNotifier {
       'claims': {for (final e in claims.entries) '${e.key}': e.value},
       'status': roomStatus,
       'paused': paused,
+      'inner': innerTurn,
+      'clapOrder': lastClapOrder,
       'eco': economy.toJson(),
       'coinFx': [for (final c in coinFx) [c.id, c.player, c.delta]],
       'lobby': [
@@ -1869,6 +1988,8 @@ class GameController extends ChangeNotifier {
     questionEndsAt = qEnds == null ? null : DateTime.fromMillisecondsSinceEpoch(qEnds - clockOffset);
     answerShown = s['answerShown'] as bool? ?? false;
     paused = s['paused'] as bool? ?? false;
+    innerTurn = (s['inner'] as num?)?.toInt();
+    lastClapOrder = [for (final n in (s['clapOrder'] as List? ?? [])) if (n is String) n];
     final eco = s['eco'];
     if (eco is Map) economy.applyJson(eco);
     final fx = s['coinFx'];

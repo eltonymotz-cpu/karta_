@@ -136,15 +136,7 @@ class _AssetLibraryScreenState extends State<AssetLibraryScreen> {
       var mode = entry.value;
       var changed = false;
       if (mode.image == oldRef) {
-        mode = GameMode(
-          emoji: mode.emoji,
-          name: mode.name,
-          description: mode.description,
-          basedOn: mode.basedOn,
-          rules: mode.rules,
-          extraCards: mode.extraCards,
-          image: newRef,
-        );
+        mode = mode.copyWith(image: newRef);
         changed = true;
       }
       if (changed) customModes[entry.key] = mode;

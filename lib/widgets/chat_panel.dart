@@ -1,23 +1,17 @@
 // =================================================================
-// الشات: زرار بعداد الرسايل الجديدة + نافذة الشات + التسجيل الصوتي
+// الشات: زرار بعداد الرسايل الجديدة + نافذة الشات (كلام بس)
 // -----------------------------------------------------------------
 // - النافذة بتفتح من تحت ومش بتقفل اللعب (الكارت بيكمل عادي وراها)
 // - الرسالة اللي بتتبعت بتظهر "بيتبعت..." لحد ما الهوست يأكدها،
 //   ولو ماوصلتش بيظهر "إعادة" و"امسح"
-// - التسجيل: دوس المايك → بيسجل بعداد → وقّف → اسمع → ابعت أو امسح
-//   (الصوت بيتبعت جوه القعدة على طول، ومابيتحفظش في أي مكان)
 // - الهوست: يشوف مين في القعدة ويقدر يكتم أو يطرد، ويمسح أي رسالة
 // =================================================================
-import 'dart:async';
-
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../data/texts.dart';
 import '../game/chat.dart';
 import '../game/game_controller.dart';
 import '../services/app_settings.dart';
-import '../services/voice_service.dart';
 import '../theme.dart';
 import 'common.dart';
 
@@ -80,7 +74,6 @@ class ChatPanel extends StatefulWidget {
   State<ChatPanel> createState() => _ChatPanelState();
 }
 
-enum _RecState { idle, recording, preview, uploading }
 
 class _ChatPanelState extends State<ChatPanel> {
   GameController get game => widget.game;
@@ -88,26 +81,8 @@ class _ChatPanelState extends State<ChatPanel> {
   final _scroll = ScrollController();
   bool _showPeople = false;
 
-  // ---------------- التسجيل ----------------
-  _RecState _rec = _RecState.idle;
-  Timer? _recTimer;
-  VoiceDraft? _draft;
-  final AudioPlayer _preview = AudioPlayer();
-  bool _previewPlaying = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _preview.onPlayerComplete.listen((_) {
-      if (mounted) setState(() => _previewPlaying = false);
-    });
-  }
-
   @override
   void dispose() {
-    _recTimer?.cancel();
-    if (_rec == _RecState.recording) VoiceService.cancel();
-    _preview.dispose();
     _text.dispose();
     _scroll.dispose();
     super.dispose();
@@ -134,84 +109,6 @@ class _ChatPanelState extends State<ChatPanel> {
     final rejected = game.sendChat(text);
     if (rejected != null) return _snack(_rejection(rejected));
     _text.clear();
-  }
-
-  // ---------------- التسجيل ----------------
-  Future<void> _startRecording() async {
-    final error = await VoiceService.start();
-    if (!mounted) return;
-    if (error != null) return _snack(error.contains('permission') ? game.t(UiText.micDenied) : error);
-    setState(() => _rec = _RecState.recording);
-    final max = AppSettings.current.voiceMaxSeconds;
-    _recTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
-      if (!mounted) return;
-      // أقصى مدة: بيقف لوحده
-      if (VoiceService.elapsed.inSeconds >= max) {
-        _stopRecording();
-      } else {
-        setState(() {});
-      }
-    });
-  }
-
-  Future<void> _stopRecording() async {
-    _recTimer?.cancel();
-    final (draft, error) = await VoiceService.stop();
-    if (!mounted) return;
-    if (draft == null) {
-      setState(() => _rec = _RecState.idle);
-      return _snack(error ?? 'Recording failed');
-    }
-    setState(() {
-      _draft = draft;
-      _rec = _RecState.preview;
-    });
-  }
-
-  Future<void> _togglePreview() async {
-    final draft = _draft;
-    if (draft == null) return;
-    if (_previewPlaying) {
-      await _preview.pause();
-      setState(() => _previewPlaying = false);
-      return;
-    }
-    try {
-      await _preview.play(BytesSource(draft.bytes, mimeType: draft.mime)); // من الذاكرة
-      setState(() => _previewPlaying = true);
-    } catch (e) {
-      _snack('$e');
-    }
-  }
-
-  Future<void> _discardDraft() async {
-    await _preview.stop();
-    setState(() {
-      _draft = null;
-      _previewPlaying = false;
-      _rec = _RecState.idle;
-    });
-  }
-
-  Future<void> _cancelRecording() async {
-    _recTimer?.cancel();
-    await VoiceService.cancel();
-    if (mounted) setState(() => _rec = _RecState.idle);
-  }
-
-  /// الإرسال (بعد التأكيد بس): الصوت نفسه بيتبعت جوه رسالة الشات
-  Future<void> _sendVoice() async {
-    final draft = _draft;
-    if (draft == null) return;
-    await _preview.stop();
-    final rejected = game.sendChat('', voice: VoiceAttachment.fromBytes(draft.bytes, draft.mime, draft.durationMs));
-    if (!mounted) return;
-    if (rejected != null) return _snack(_rejection(rejected)); // التسجيل لسه موجود: يقدر يعيد
-    setState(() {
-      _draft = null;
-      _previewPlaying = false;
-      _rec = _RecState.idle;
-    });
   }
 
   @override
@@ -266,46 +163,14 @@ class _ChatPanelState extends State<ChatPanel> {
     );
   }
 
-  /// خانة الكتابة + المايك (أو شريط التسجيل/المعاينة)
+  /// خانة الكتابة
   Widget _composer() {
-    final voiceOn = AppSettings.current.voiceOnline;
-    Widget bar;
-    switch (_rec) {
-      case _RecState.recording:
-        bar = Row(
-          children: [
-            Pulse(scale: 1.2, child: Icon(Icons.fiber_manual_record, color: AppColors.red)),
-            const SizedBox(width: 6),
-            Text('${game.t(UiText.recording)} ${_clock(VoiceService.elapsed.inMilliseconds)} / ${AppSettings.current.voiceMaxSeconds}s',
-                style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink)),
-            const Spacer(),
-            IconButton(tooltip: game.t(UiText.discard), onPressed: _cancelRecording, icon: Icon(Icons.delete_outline, color: AppColors.red)),
-            SquareButton(color: AppColors.red, onTap: _stopRecording, child: Text('⏹ ${game.t(UiText.stopRecording)}')),
-          ],
-        );
-      case _RecState.preview:
-      case _RecState.uploading:
-        final uploading = _rec == _RecState.uploading;
-        bar = Row(
-          children: [
-            IconButton(
-              onPressed: uploading ? null : _togglePreview,
-              icon: Icon(_previewPlaying ? Icons.pause_circle : Icons.play_circle, color: AppColors.ink, size: 32),
-            ),
-            Text(_clock(_draft?.durationMs ?? 0), textDirection: TextDirection.ltr, style: rankStyle(size: 14)),
-            const Spacer(),
-            if (uploading) ...[
-              SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.ink)),
-              const SizedBox(width: 8),
-              Text(game.t(UiText.uploadingVoice), style: const TextStyle(fontWeight: FontWeight.w800)),
-            ] else ...[
-              IconButton(tooltip: game.t(UiText.discard), onPressed: _discardDraft, icon: Icon(Icons.delete_outline, color: AppColors.red)),
-              SquareButton(color: AppColors.green, onTap: _sendVoice, child: Text('➤ ${game.t(UiText.sendVoice)}')),
-            ],
-          ],
-        );
-      case _RecState.idle:
-        bar = Row(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: BoxDecoration(color: AppColors.bg, border: Border(top: BorderSide(color: AppColors.ink, width: 2))),
+      child: SafeArea(
+        top: false,
+        child: Row(
           children: [
             Expanded(
               child: TextField(
@@ -335,27 +200,12 @@ class _ChatPanelState extends State<ChatPanel> {
               ),
             ),
             const SizedBox(width: 6),
-            if (voiceOn)
-              IconButton(
-                tooltip: game.t(UiText.record),
-                onPressed: _startRecording,
-                icon: Icon(Icons.mic, color: AppColors.ink),
-              ),
             SquareButton(color: AppColors.yellow, onTap: _sendText, child: const Icon(Icons.send)),
           ],
-        );
-    }
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-      decoration: BoxDecoration(color: AppColors.bg, border: Border(top: BorderSide(color: AppColors.ink, width: 2))),
-      child: SafeArea(top: false, child: bar),
+        ),
+      ),
     );
   }
-}
-
-String _clock(int ms) {
-  final s = ms ~/ 1000;
-  return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
 }
 
 String _time(int ms) {
@@ -410,7 +260,6 @@ class MessageBubble extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(message.text, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink)),
               ],
-              if (message.voice != null) VoiceMessagePlayer(game: game, voice: message.voice!),
             ],
           ),
         ),
@@ -442,7 +291,7 @@ class _PendingBubble extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(pending.voice != null ? '🎤 ${game.t(UiText.voiceNote)}' : pending.text,
+              Text(pending.text,
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink)),
               const SizedBox(height: 2),
               if (!failed)
@@ -460,63 +309,6 @@ class _PendingBubble extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// مشغّل الرسالة الصوتية (تشغيل/إيقاف + المدة). الصوت بيتشغل من الذاكرة على طول.
-class VoiceMessagePlayer extends StatefulWidget {
-  final GameController game;
-  final VoiceAttachment voice;
-  const VoiceMessagePlayer({super.key, required this.game, required this.voice});
-
-  @override
-  State<VoiceMessagePlayer> createState() => _VoiceMessagePlayerState();
-}
-
-class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
-  AudioPlayer? _player;
-  bool _playing = false;
-
-  @override
-  void dispose() {
-    _player?.dispose();
-    super.dispose();
-  }
-
-  Future<void> _toggle() async {
-    final player = _player ??= AudioPlayer()
-      ..onPlayerComplete.listen((_) {
-        if (mounted) setState(() => _playing = false);
-      });
-    try {
-      if (_playing) {
-        await player.pause();
-      } else {
-        await player.play(BytesSource(widget.voice.bytes, mimeType: widget.voice.mime));
-      }
-      if (mounted) setState(() => _playing = !_playing);
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text('$e'), backgroundColor: AppColors.red));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // اللي دخل متأخر بيشوف إن فيه رسالة صوتية، بس الصوت نفسه مابيتبعتش تاني
-    if (!widget.voice.available) {
-      return Text(widget.game.t(UiText.voiceUnavailable), style: TextStyle(fontSize: 12, color: AppColors.muted));
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          onPressed: _toggle,
-          icon: Icon(_playing ? Icons.pause_circle : Icons.play_circle, color: AppColors.ink, size: 30),
-        ),
-        Text('🎤 ${_clock(widget.voice.durationMs)}', textDirection: TextDirection.ltr, style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.ink)),
-      ],
     );
   }
 }

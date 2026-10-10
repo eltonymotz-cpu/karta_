@@ -23,6 +23,7 @@ class PlayerSeat extends StatelessWidget {
   final VoidCallback onTap;
   final Widget? clock;     // ساعة الدور (بتظهر لصاحب الدور بس)
   final Widget? coins;     // رصيد الكوينز (شارة صغيرة تحت المقعد، مابتغيرش مقاسه)
+  final bool pointer;      // سهم الدور جوه الكارت (وزن وقافية، براندات...)
 
   const PlayerSeat({
     super.key,
@@ -37,6 +38,7 @@ class PlayerSeat extends StatelessWidget {
     this.isMe = false,
     this.clock,
     this.coins,
+    this.pointer = false,
   });
 
   @override
@@ -145,6 +147,20 @@ class PlayerSeat extends StatelessWidget {
             // علامة الصمت 🤐 فوق المقعد
             if (isSilent)
               const Positioned(top: -10, right: -8, child: Text('🤐', style: TextStyle(fontSize: 17))),
+            // سهم: الدور جوه الكارت على اللاعب ده
+            if (pointer)
+              Positioned(
+                top: -14,
+                right: -10,
+                child: Pulse(
+                  scale: 1.2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: Brutal.box(color: AppColors.orange, borderWidth: 1.6, shadowOffset: Offset.zero),
+                    child: const Text('👉', style: TextStyle(fontSize: 14)),
+                  ),
+                ),
+              ),
             // الكوينز: شارة تحت المقعد (مختلفة عن عدد الكروت)
             if (coins != null)
               Positioned(

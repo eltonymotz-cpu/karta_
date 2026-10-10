@@ -60,7 +60,7 @@ class EconomyConfig {
 
   const EconomyConfig({
     this.enabled = true,
-    this.name = const LText('كوينز', 'Coins'),
+    this.name = const LText('فلوس', 'Floos'),
     this.icon = 'asset:pixel/money_bill.png',
     this.startBalance = 1000,
     this.maxBalance = 100000,
@@ -397,16 +397,17 @@ class Economy {
 
   /// ضريبة الخسارة على الخسرانين في جولة. roundKey لازم يكون مميز للجولة،
   /// فلو اتنادت تاني بنفس المفتاح مابتعملش حاجة.
-  List<CoinChange> settleRound(String roundKey, List<int> losers, {CardCategory? category, int? turnPlayer, String card = '', required int now}) {
+  /// amount: تمن الكارت (لو الأدمن حاطط تمن للكارت ده)، وإلا بتتحسب من إعدادات الضريبة
+  List<CoinChange> settleRound(String roundKey, List<int> losers, {CardCategory? category, int? turnPlayer, String card = '', int? amount, required int now}) {
     final changes = <CoinChange>[];
-    if (!active || !config.taxEnabled) return changes;
+    if (!active || (!config.taxEnabled && amount == null)) return changes;
     var collected = 0;
     for (final p in losers.toSet()) {
       if (p < 0 || p >= wallets.length) continue;
       final key = 'tax:$roundKey:$p';
       if (!_settled.add(key)) continue; // اتدفعت قبل كده
       final w = wallets[p];
-      var tax = taxFor(w.balance, category);
+      var tax = amount ?? taxFor(w.balance, category);
       if (tax <= 0) continue;
       if (tax > w.balance) {
         if (config.insufficient == 'skip') continue;

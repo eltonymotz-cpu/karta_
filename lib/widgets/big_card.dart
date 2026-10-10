@@ -92,6 +92,33 @@ class BigCard extends StatelessWidget {
                     ),
                   ),
                 // الإجابة: بتظهر للكل لما الهوست يكشفها (بحركة ناعمة)
+                // الدور جوه الكارت (وزن وقافية، براندات...): مين عليه الدور دلوقتي
+                if (card != null && game.innerTurn != null && game.innerTurn! < game.players.length)
+                  Positioned(
+                    bottom: w * 0.2 + shadow,
+                    left: w * 0.06,
+                    right: w * 0.06 + shadow,
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: w * 0.03, vertical: w * 0.01),
+                          decoration: Brutal.box(color: game.players[game.innerTurn!].color, borderWidth: 2, shadowOffset: const Offset(2, 2)),
+                          child: Text(
+                            game.t(fillText(UiText.innerTurnOf, {'name': game.players[game.innerTurn!].name})),
+                            style: pixelStyle(size: w * 0.045),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // ضهر الكارت بعد كارت تصفيق: ترتيب اللي صقّفوا (الأول ← الأخير) لحد الكارت الجاي
+                if (card == null && game.lastClapOrder.isNotEmpty)
+                  Positioned(
+                    top: w * 0.13,
+                    left: w * 0.08,
+                    right: w * 0.08 + shadow,
+                    child: IgnorePointer(child: _ClapOrderBox(w: w, title: game.t(UiText.lastClapResult), names: game.lastClapOrder)),
+                  ),
                 if (card != null && game.answerShown && game.currentRule?.answer != null)
                   Positioned(
                     top: w * 0.14,
@@ -243,9 +270,12 @@ class _CardFront extends StatelessWidget {
   /// عرض القاعدة
   Widget _ruleView(double w) {
     final description = fillText(rule.description, {'player': game.currentPlayer.name});
+    // كارت سؤال: الأول "دوس تشوف الإجابة"، وبعد الكشف الدوسة بتكمّل عادي
     final hint = game.isViewer
         ? UiText.hostDecides
-        : switch (rule.type) {
+        : rule.answer != null && !game.answerShown
+            ? UiText.tapToRevealAnswer
+            : switch (rule.type) {
             RuleType.assign => UiText.tapToChoose,
             RuleType.free => UiText.tapToGive,
             RuleType.self => UiText.tapToTake,
@@ -663,6 +693,45 @@ class _AnswerBanner extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// ترتيب التصفيق على ضهر الكارت: 🥇 أول واحد ... 🐢 آخر واحد
+class _ClapOrderBox extends StatelessWidget {
+  final double w;
+  final String title;
+  final List<String> names;
+  const _ClapOrderBox({required this.w, required this.title, required this.names});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(w * 0.025),
+      decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(3, 3)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(title, style: pixelStyle(size: w * 0.042)),
+          SizedBox(height: w * 0.01),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: w * 0.02,
+            runSpacing: w * 0.005,
+            children: [
+              for (var i = 0; i < names.length; i++)
+                Text(
+                  '${i == 0 ? '🥇' : i == names.length - 1 && names.length > 1 ? '🐢' : '${i + 1}.'} ${names[i]}',
+                  style: TextStyle(
+                    fontSize: w * 0.038,
+                    fontWeight: FontWeight.w900,
+                    color: i == names.length - 1 && names.length > 1 ? AppColors.red : AppColors.ink,
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

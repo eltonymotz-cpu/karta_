@@ -341,6 +341,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
   final Map<String, _RuleDraft> _drafts = {for (final r in cardRanks) r: _RuleDraft()};
   final List<_ExtraDraft> _extras = [];  // الكروت الزيادة
   String? _image;                        // صورة النمط (رابط في Supabase Storage)
+  bool _money = false;                   // النمط ده بالفلوس (كل كارت ليه تمن)
   String? _originalImage;                // الصورة اللي كانت محفوظة قبل التعديل
   final Set<String> _newUploads = {};    // صور اترفعت في الجلسة دي (بتتمسح لو خرجنا من غير حفظ)
   bool _saved = false;
@@ -363,6 +364,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
       _descAr.text = existing.description.ar;
       _descFr.text = existing.description.fr;
       _image = existing.image;
+      _money = existing.money;
       _originalImage = existing.image;
       _extras.addAll(existing.extraCards.map(_ExtraDraft.from));
       _fillCardsFrom(widget.modeId!);
@@ -459,6 +461,7 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
       rules: {for (final rank in cardRanks) rank: _drafts[rank]!.build()},
       extraCards: [for (final x in _extras) x.build()],
       image: _image,
+      money: _money,
     );
     final id = widget.modeId ?? 'custom_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -518,6 +521,19 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                       _field(game.t(UiText.modeNameFr), _nameFr, ltr: true),
                       _field(game.t(UiText.modeDescAr), _descAr, lines: 2),
                       _field(game.t(UiText.modeDescFr), _descFr, lines: 2, ltr: true),
+                      // نقط ولا فلوس؟ (الفلوس: اللي ياخد كارت يدفع تمنه، والتمن بيتحط لكل كارت من محرر الكروت)
+                      Material(
+                        type: MaterialType.transparency,
+                        child: SwitchListTile(
+                          value: _money,
+                          onChanged: (v) => setState(() => _money = v),
+                          title: Text('💰 ${game.t(UiText.moneyMode)}', style: const TextStyle(fontWeight: FontWeight.w900)),
+                          subtitle: Text(game.t(UiText.moneyModeHint), style: const TextStyle(fontSize: 12)),
+                          activeThumbColor: AppColors.ink,
+                          activeTrackColor: AppColors.yellow,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
                       // صورة النمط
                       Align(
                         alignment: AlignmentDirectional.centerStart,

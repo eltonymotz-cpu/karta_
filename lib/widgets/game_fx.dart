@@ -175,3 +175,61 @@ class _FxFloatingLabelState extends State<FxFloatingLabel> with SingleTickerProv
     );
   }
 }
+
+/// إيموجي من الأزرار السريعة: بيظهر كبير في نص اللعبة ويطلع لفوق ويختفي (ومعاه اسم اللي بعته)
+class FxReaction extends StatefulWidget {
+  final Offset at;
+  final String emoji;
+  final String name;
+  final VoidCallback onDone;
+  const FxReaction({super.key, required this.at, required this.emoji, required this.name, required this.onDone});
+
+  @override
+  State<FxReaction> createState() => _FxReactionState();
+}
+
+class _FxReactionState extends State<FxReaction> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
+
+  @override
+  void initState() {
+    super.initState();
+    _c.forward().whenComplete(widget.onDone);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final still = MediaQuery.of(context).disableAnimations;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        final t = _c.value;
+        final scale = still ? 1.0 : (t < 0.15 ? 0.4 + 4.6 * t : 1.09 - 0.09 * t);
+        final dy = still ? 0.0 : -90 * Curves.easeOut.transform(t);
+        return Positioned(
+          left: widget.at.dx - 60,
+          top: widget.at.dy - 50 + dy,
+          width: 120,
+          child: Opacity(opacity: t > 0.75 ? (1 - t) / 0.25 : 1.0, child: Transform.scale(scale: scale, child: child)),
+        );
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(widget.emoji, style: const TextStyle(fontSize: 54)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: Brutal.box(borderWidth: 1.6, shadowOffset: Offset.zero),
+            child: Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.ink)),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:karta/data/coin_texts.dart';
+import 'package:karta/data/game_modes.dart';
 import 'package:karta/game/game_controller.dart';
 import 'package:karta/widgets/wallet_panel.dart';
 
@@ -17,7 +18,9 @@ void main() {
     FlutterError.onError = (d) {
       if (!d.toString().contains('overflowed')) errors.add(d.exceptionAsString());
     };
+    customModes['money'] = completeMode('classic').copyWith(money: true);
     final game = GameController()..sound.enabled = false;
+    game.setMode('money');
     game.startGame(['Sara', 'Omar', 'Mona']);
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: WalletPanel(game: game))));
     await tester.pump();

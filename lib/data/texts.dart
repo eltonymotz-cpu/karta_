@@ -508,9 +508,17 @@ class UiText {
   static const voiceModeration = LText('الرسايل العامة محتاجة موافقتي', 'El rasayel el 3amma me7taga mowaf2ty');
   static const reviewVoices = LText('مراجعة الرسايل العامة', 'Moraga3et el rasayel el 3amma');
   static const nothingSavedNote = LText(
-    'مفيش حاجة بتتحفظ: الشات والرسايل الصوتية بيتبعتوا جوه القعدة على طول، ومابيترفعوش على أي سيرفر، وبيتمسحوا أول ما اللعبة تتقفل.',
-    'Mafeesh 7aga betet7efez: el chat wel rasayel el sawtya byetba3to gowa el 2a3da 3ala tool, w mabyetrefe3oosh 3ala ay server, w byetmes7o awel ma el le3ba tet2efel.',
+    'مفيش حاجة بتتحفظ: الشات والأزرار السريعة بيتبعتوا جوه القعدة على طول، ومابيترفعوش على أي سيرفر، وبيتمسحوا أول ما اللعبة تتقفل.',
+    'Mafeesh 7aga betet7efez: el chat wel azrar el sar3a byetba3to gowa el 2a3da 3ala tool, w byetmes7o awel ma el le3ba tet2efel.',
   );
+  static const reactionsTitle = LText('الأزرار السريعة', 'El azrar el sar3a');
+  static const reactionsLabel = LText('كل لاعب يقدر يبعت إيموجي يظهر في نص اللعبة', 'Kol la3eb ye2dar yeb3at emoji yezhar fe nos el le3ba');
+  static const reactionsHint = LText(
+    'كل لاعب عنده 5 زراير بيختار الإيموجي بتاعهم (دوسة طويلة على الزرار عشان تغيّره).',
+    'Kol la3eb 3ando 5 zarayer byekhtar el emoji beta3hom (dosa taweela 3al zorar 3ashan tghayyaro).',
+  );
+  static const editReaction = LText('اختار إيموجي للزرار', 'Ekhtar emoji lel zorar');
+  static const customEmoji = LText('أو اكتب إيموجي تاني', 'Aw ekteb emoji tany');
   static const voiceUnavailable = LText('🎤 الرسالة مش متاحة (اتبعتت قبل ما تدخل)', '🎤 El resala mesh meta7a');
   static const formatsNote = LText('الصيغ: WebM/Opus على الويب و M4A/AAC على الموبايل (أصغر حجم).', 'El seyagh: WebM/Opus 3al web w M4A/AAC 3al mobile.');
 
@@ -536,4 +544,29 @@ class UiText {
   static const gamePaused = LText('اللعبة واقفة مؤقتاً', 'El le3ba wa2fa mo2aqatan');
   static const logPaused = LText('⏸ الهوست وقّف اللعبة', '⏸ El host wa22af el le3ba');
   static const logResumed = LText('▶ اللعبة كمّلت', '▶ El le3ba kammelet');
+
+  // ---------- نقط أو فلوس + تمن الكارت + كارت السؤال + الدور جوه الكارت ----------
+  static const moneyMode = LText('النمط ده بالفلوس', 'El namat da bel floos');
+  static const moneyModeHint = LText(
+    'مقفول = بالنقط (عدد الكروت زي ما هو). مفتوح = كل لاعب بيبدأ برصيد، واللي ياخد كارت يدفع تمنه (التمن بيتحط لكل كارت من محرر الكروت).',
+    'Ma2fool = bel no2at. Maftoo7 = kol la3eb byebda2 b raseed, w elly yakhod kart yedfa3 tamano.',
+  );
+  static const cardCost = LText('تمن الكارت (في الأنماط اللي بالفلوس)', 'Taman el kart (fel anmat elly bel floos)');
+  static const cardCostHint = LText('اللي ياخد الكارت ده يدفع المبلغ ده. فاضي = حسب إعدادات الضريبة العامة.', 'Elly yakhod el kart yedfa3 el mablagh da.');
+  static const moneyOnlyNote = LText('النمط ده بالنقط: التمن مش هيتحسب غير لو فتحت "النمط ده بالفلوس" من تعديل النمط.', 'El namat da bel no2at.');
+  static const passAroundLabel = LText('🔁 دور جوه الكارت', '🔁 Dor gowa el kart');
+  static const passAroundHint = LText(
+    'لكروت زي وزن وقافية والبراندات: سهم على اللاعب اللي عليه الدور، والهوست بيعدّيه للي بعده بزرار.',
+    'Le kroot zay wazn w 2afya: sahm 3al la3eb elly 3aleh el dor, wel host bey3addeeh lel ba3do b zorar.',
+  );
+  static const innerTurnOf = LText('👉 الدور على {name}', '👉 El dor 3ala {name}');
+  static const nextInner = LText('اللي بعده ◀', 'Elly ba3do ◀');
+  static const prevInner = LText('▶ اللي قبله', '▶ Elly 2ablo');
+  static const questionCard = LText('❓ كارت سؤال', '❓ Kart so2al');
+  static const questionCardHint = LText(
+    'لو كتبت إجابة، الكارت بيتقلب على السؤال، ودوسة على الكارت تكشف الإجابة للكل، وبعدها الهوست يختار الخسران.',
+    'Law katabt egaba, el kart byet2eleb 3al so2al, w dosa tekshef el egaba, w ba3daha el host yekhtar el khasran.',
+  );
+  static const tapToRevealAnswer = LText('👆 دوس تشوف الإجابة', '👆 Dos teshoof el egaba');
+  static const lastClapResult = LText('👏 التصفيق اللي فات', '👏 El tasfee2 elly fat');
 }
