@@ -42,6 +42,28 @@ Widget imageFromRef(String ref, {BoxFit fit = BoxFit.cover, double? width, doubl
   }
 }
 
+/// مصدر الصورة من مرجعها (عشان نحمّلها بدري قبل ما الكارت يتقلب)
+ImageProvider? providerFromRef(String? ref) {
+  if (ref == null || ref.isEmpty) return null;
+  if (ref.startsWith(assetPrefix)) return AssetImage(assetPath(ref));
+  if (ref.startsWith('http')) return NetworkImage(ref);
+  try {
+    return MemoryImage(base64Decode(ref));
+  } catch (_) {
+    return null;
+  }
+}
+
+/// تحميل كل صور كروت النمط في الذاكرة من أول اللعبة (القلبة بتبقى فورية من غير ما تستنى صورة)
+void precacheModeImages(BuildContext context, String modeId) {
+  for (final card in cardsOf(modeId)) {
+    for (final ref in [card.rule.design.iconUrl, card.rule.design.artworkUrl]) {
+      final provider = providerFromRef(ref);
+      if (provider != null) precacheImage(provider, context, onError: (_, _) {});
+    }
+  }
+}
+
 /// الستيكر اللي الكارت هيستخدمه (من التصميم أو الافتراضي بتاع قيمته)
 Sticker stickerFor(CardRule rule, String rank) {
   final name = rule.design.sticker;

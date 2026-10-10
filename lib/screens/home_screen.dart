@@ -183,6 +183,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _join() {
     if (!AppConfig.hasSupabase) return _snack(game.t(UiText.noSupabase));
     if (_codeController.text.trim().length < 4) return;
+    // كل لاعب بيكتب اسمه بنفسه (ده اللي هيلعب بيه)
+    if (_nameController.text.trim().isEmpty) return _snack(game.t(UiText.nameRequired));
     game.setNickname(_nameController.text);
     game.joinRoom(_codeController.text);
   }
@@ -318,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // اسمي في الشات (اختياري: لو ماسك لاعب بيظهر اسم اللاعب)
-          _BoxField(controller: _nameController, hint: game.t(UiText.yourName), small: true),
+          _BoxField(controller: _nameController, hint: game.t(UiText.yourNameInGame), small: true),
           const SizedBox(height: 10),
           Row(
             children: [

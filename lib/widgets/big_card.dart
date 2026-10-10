@@ -49,11 +49,11 @@ class BigCard extends StatelessWidget {
                   child: GestureDetector(
                     onTap: game.tapCard, // كل الضغطات على الكارت
                     child: AnimatedSwitcher(
-                      // مدة القلبة كلها ربع ثانية (أسرع قلبة وفضلت ناعمة)
-                      duration: const Duration(milliseconds: 250),
-                      // الوش القديم يلف في أول نص الوقت، والجديد في النص التاني
-                      switchInCurve: const Interval(0.5, 1, curve: Curves.easeOutQuad),
-                      switchOutCurve: const Interval(0.5, 1, curve: Curves.easeInQuad),
+                      // القلبة كلها 200 مللي ثانية: الوش القديم بيختفي بسرعة (80ms)
+                      // والجديد بيظهر على طول ويكمل لفته بنعومة (120ms) - من غير إحساس بتأخير
+                      duration: const Duration(milliseconds: 200),
+                      switchInCurve: const Interval(0.4, 1, curve: Curves.easeOutCubic),
+                      switchOutCurve: const Interval(0.6, 1, curve: Curves.easeIn),
                       transitionBuilder: (child, animation) => _flipTransition(child, animation, faceKey),
                       layoutBuilder: (current, previous) => Stack(
                         alignment: Alignment.topLeft,

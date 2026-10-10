@@ -575,4 +575,18 @@ class UiText {
   static const fineLabel = LText('💸 غرامة', '💸 Gharama');
   static const finesTitle = LText('غرامة كل كارت (اللي يخسر الكارت يدفعها)', 'Gharamet kol kart (elly yekhsar el kart yedfa3ha)');
   static const finesHint = LText('فاضي = حسب إعدادات الفلوس العامة (5% من الرصيد).', 'Fady = 7asab e3dadat el floos el 3amma.');
+
+  // ---------- أسامي اللاعيبة في أكتر من موبايل ----------
+  static const multiPlayersHint = LText('كل واحد بيدخل بالكود أو الـ QR وبيكتب اسمه بنفسه، واسمه بيظهر هنا.', 'Kol wa7ed byedkhol bel code aw el QR w byekteb esmo bnafso.');
+  static const iPlay = LText('أنا كمان بلعب', 'Ana kaman bal3ab');
+  static const hostNameHint = LText('اسمك', 'Esmak');
+  static const offlinePlayers = LText('لاعيبة من غير موبايل', 'La3eeba men gher mobile');
+  static const addOfflinePlayer = LText('+ لاعب من غير موبايل', '+ La3eb men gher mobile');
+  static const playersCount = LText('عدد اللاعيبة: {n} (من 3 لـ 8)', '3adad el la3eeba: {n} (men 3 le 8)');
+  static const needMorePlayers = LText('لازم 3 لاعيبة على الأقل: استنى حد يدخل أو ضيف لاعب من غير موبايل', 'Lazem 3 la3eeba 3al a2al');
+  static const tooManyPlayers = LText('أقصى 8 لاعيبة', 'A2sa 8 la3eeba');
+  static const nameRequired = LText('اكتب اسمك الأول', 'Ekteb esmak el awel');
+  static const yourNameInGame = LText('اسمك في اللعبة', 'Esmak fel le3ba');
+  static const nameSaved = LText('تمام', 'Tamam');
+  static const willJoinAs = LText('هتلعب باسم: {name}', 'Hatel3ab b esm: {name}');
 }

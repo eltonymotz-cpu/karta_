@@ -15,6 +15,7 @@ import '../game/game_controller.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../widgets/big_card.dart';
+import '../widgets/card_face.dart';
 import '../widgets/chat_panel.dart';
 import '../widgets/common.dart';
 import '../widgets/game_fx.dart';
@@ -291,6 +292,11 @@ class _WaitingForHost extends StatelessWidget {
             SizedBox(width: 28, height: 28, child: CircularProgressIndicator(color: AppColors.ink, strokeWidth: 3)),
             const SizedBox(height: 14),
             Headline(game.t(connected ? UiText.waitingHost : UiText.connecting), size: 22, align: TextAlign.center),
+            // اسمي في اللعبة (اللي دخل بالـ QR بيكتبه هنا، وأي حد يقدر يعدّله قبل ما اللعب يبدأ)
+            if (connected) ...[
+              const SizedBox(height: 20),
+              _NameBox(game: game),
+            ],
             // اللوبي: مين في القعدة + الشات وإحنا مستنيين
             if (connected && game.chatAvailable) ...[
               const SizedBox(height: 20),
@@ -298,6 +304,66 @@ class _WaitingForHost extends StatelessWidget {
               const SizedBox(height: 12),
               BrutalButton(label: '💬 ${game.t(UiText.lobbyChat)}', onTap: () => showChatSheet(context, game), color: AppColors.blue),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// خانة اسم اللاعب في شاشة الانتظار
+class _NameBox extends StatefulWidget {
+  final GameController game;
+  const _NameBox({required this.game});
+
+  @override
+  State<_NameBox> createState() => _NameBoxState();
+}
+
+class _NameBoxState extends State<_NameBox> {
+  late final _name = TextEditingController(text: widget.game.nickname);
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (_name.text.trim().isEmpty) return;
+    widget.game.renameMe(_name.text);
+    FocusScope.of(context).unfocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final game = widget.game;
+    final saved = game.nickname.isNotEmpty;
+    return SizedBox(
+      width: 360,
+      child: BrutalBox(
+        color: saved ? AppColors.paper : AppColors.yellow,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(saved ? game.t(fillText(UiText.willJoinAs, {'name': game.nickname})) : game.t(UiText.nameRequired),
+                style: pixelStyle(size: 14)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _name,
+                    maxLength: 24,
+                    onSubmitted: (_) => _save(),
+                    decoration: InputDecoration(hintText: game.t(UiText.yourNameInGame), counterText: '', isDense: true, filled: true, fillColor: AppColors.paper),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SquareButton(color: AppColors.green, onTap: _save, child: Text(game.t(UiText.nameSaved))),
+              ],
+            ),
           ],
         ),
       ),
@@ -640,6 +706,18 @@ class _TableState extends State<_Table> {
     _lastReaction = game.reactionFeed.isEmpty ? 0 : game.reactionFeed.last.id;
     game.addListener(_onGameChanged);
   }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // كل صور الكروت (أيقونات وخلفيات) بتتحمل من أول اللعبة، فالقلبة مابتستناش أي صورة
+    if (!_precached) {
+      _precached = true;
+      precacheModeImages(context, game.modeId);
+    }
+  }
+
+  bool _precached = false;
 
   @override
   void didUpdateWidget(_Table old) {

@@ -202,6 +202,18 @@ class _FontWarmup extends StatelessWidget {
               Text(emojis, style: const TextStyle(fontSize: 6, fontWeight: FontWeight.w800)),
               // خط البيكسل كمان (عشان العناوين تظهر بيه من أول مرة)
               Text('Karta AKQJ 1234567890 ★', style: rankStyle(size: 6)),
+              // خطوط عناوين الكروت (عربي وفرانكو) - من غير ما تستنى تحميل أول ما كارت يتقلب
+              Text('صقّف براندات Karta', style: pixelStyle(size: 6)),
+              Text('Karta', style: pixelStyle(size: 6, weight: FontWeight.w500)),
+              Text('Karta كارتة', style: const TextStyle(fontSize: 6, fontWeight: FontWeight.w600)),
+              Text('Karta كارتة', style: const TextStyle(fontSize: 6, fontWeight: FontWeight.w900)),
+              // تسخين حركة القلب ثلاثية الأبعاد (عشان أول قلبة ماتهنّجش وهي بتتجهز)
+              Transform(
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.0015)
+                  ..rotateY(0.6),
+                child: Container(width: 8, height: 8, decoration: Brutal.box(borderWidth: 1, shadowOffset: const Offset(1, 1))),
+              ),
             ],
           ),
         ),

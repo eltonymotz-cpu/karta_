@@ -639,6 +639,32 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// أكتر من موبايل: اللاعيبة هما اللي دخلوا بالكود (كل واحد كاتب اسمه بنفسه)
+  /// + الهوست لو بيلعب + لاعيبة من غير موبايل. كل موبايل بيمسك اللاعب بتاعه على طول.
+  void startMultiGame({String? hostName, required List<(String, String)> phones, List<String> extra = const []}) {
+    final names = <String>[?hostName, for (final p in phones) p.$2, ...extra];
+    startGame(names);
+    claims = {};
+    var index = 0;
+    if (hostName != null) {
+      claims[0] = deviceId;
+      myPlayerIndex = 0;
+      index = 1;
+    } else {
+      myPlayerIndex = null;
+    }
+    for (final p in phones) {
+      claims[index++] = p.$1;
+    }
+    notifyListeners();
+  }
+
+  /// موبايل اللاعب: يغيّر اسمه (والهوست بيعرف على طول)
+  void renameMe(String name) {
+    setNickname(name);
+    if (isViewer && nickname.isNotEmpty) room?.sendAction({'type': 'ping', 'device': deviceId, 'name': nickname});
+  }
+
   /// تعمل الكومة: كل كارت مفعّل × 4 أشكال + الكروت الزيادة المفعّلة، وتخلطهم
   List<PlayingCard> _buildDeck() {
     final cards = _deckCards(modeId, onlyEnabled: true);
@@ -1137,6 +1163,9 @@ class GameController extends ChangeNotifier {
   /// للاختبارات: نعتبر إننا في قعدة أونلاين (من غير نت)
   @visibleForTesting
   bool onlineForTest = false;
+
+  /// فيه قعدة أونلاين مفتوحة؟
+  bool get inOnlineRoom => room != null || onlineForTest;
 
   /// اللاعيبة اللي لازم يصقّفوا: كل لاعب ليه موبايل متصل (والهوست لو اختار هو مين)
   Set<int> get clapPlayers {
@@ -2062,6 +2091,9 @@ class GameController extends ChangeNotifier {
     final next = s['next'];
     _viewerNext = next is Map ? Map<String, dynamic>.from(next) : null;
 
+    // الهوست ربط الموبايل ده باسمه لما بدأ اللعب: نعرف إحنا مين على طول
+    final mineByHost = claims.entries.where((e) => e.value == deviceId).map((e) => e.key).firstOrNull;
+    if (mineByHost != null) myPlayerIndex = mineByHost;
     // الهوست ماأكدش إني ماسك اللاعب ده (حد سبقني)، أو اللاعب اتشال
     if (myPlayerIndex != null && claims[myPlayerIndex] != deviceId && claims.containsKey(myPlayerIndex)) {
       myPlayerIndex = null;

@@ -24,6 +24,11 @@ class _SetupScreenState extends State<SetupScreen> {
   // متحكم لكل خانة اسم (بيحفظ النص المكتوب)
   late List<TextEditingController> _controllers;
 
+  // أكتر من موبايل: اسم الهوست + هل بيلعب + لاعيبة من غير موبايل
+  late final _hostName = TextEditingController(text: widget.game.nickname);
+  bool _hostPlays = true;
+  final List<TextEditingController> _offline = [];
+
   GameController get game => widget.game;
 
   @override
@@ -36,7 +41,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
   @override
   void dispose() {
-    for (final c in _controllers) {
+    for (final c in [..._controllers, ..._offline, _hostName]) {
       c.dispose();
     }
     super.dispose();
@@ -52,7 +57,130 @@ class _SetupScreenState extends State<SetupScreen> {
     setState(() => _controllers.removeAt(index).dispose());
   }
 
+  /// اللي دخلوا بالكود ومتصلين دلوقتي (بترتيب دخولهم)
+  List<(String, String)> get _phones => [
+        for (final e in game.lobby.entries)
+          if (game.nowMs - e.value.lastSeen < 50000) (e.key, e.value.name),
+      ];
+
+  void _snack(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text, style: const TextStyle(fontWeight: FontWeight.w800)), backgroundColor: AppColors.red),
+    );
+  }
+
+  /// أكتر من موبايل: الأسامي جاية من الموبايلات نفسها (كل لاعب كتب اسمه)
+  void _startMulti() {
+    final hostName = _hostName.text.trim().isEmpty ? game.t(UiText.host) : _hostName.text.trim();
+    final phones = _phones;
+    final extra = [for (final c in _offline) if (c.text.trim().isNotEmpty) c.text.trim()];
+    final total = (_hostPlays ? 1 : 0) + phones.length + extra.length;
+    if (total < GameController.minPlayers) return _snack(game.t(UiText.needMorePlayers));
+    if (total > GameController.maxPlayers) return _snack(game.t(UiText.tooManyPlayers));
+    // الأسامي المتكررة بتاخد رقم ("سارة 2") عشان كل لاعب يتعرف
+    final used = <String>{};
+    String unique(String name) {
+      var candidate = name;
+      var n = 2;
+      while (!used.add(candidate)) {
+        candidate = '$name ${n++}';
+      }
+      return candidate;
+    }
+
+    game.setNickname(hostName);
+    game.startMultiGame(
+      hostName: _hostPlays ? unique(hostName) : null,
+      phones: [for (final p in phones) (p.$1, unique(p.$2))],
+      extra: [for (final e in extra) unique(e)],
+    );
+  }
+
+  /// قسم اللاعيبة في أكتر من موبايل
+  List<Widget> _multiPlayers() {
+    final phones = _phones;
+    final total = (_hostPlays ? 1 : 0) + phones.length + _offline.where((c) => c.text.trim().isNotEmpty).length;
+    final small = TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w700);
+    return [
+      _sectionTitle(game.t(UiText.players), game.t(fillText(UiText.playersCount, {'n': total}))),
+      const SizedBox(height: 6),
+      Text(game.t(UiText.multiPlayersHint), style: small),
+      const SizedBox(height: 10),
+      // الهوست: اسمه + بيلعب ولا بيتفرج
+      Container(
+        padding: const EdgeInsets.all(10),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: Brutal.box(color: _hostPlays ? AppColors.yellow : AppColors.paper, borderWidth: 2, shadowOffset: const Offset(2, 2)),
+        child: Row(
+          children: [
+            Checkbox(value: _hostPlays, onChanged: (v) => setState(() => _hostPlays = v ?? true), activeColor: AppColors.ink, checkColor: AppColors.yellow),
+            Text('👑 ${game.t(UiText.iPlay)}', style: const TextStyle(fontWeight: FontWeight.w900)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _hostName,
+                enabled: _hostPlays,
+                maxLength: 24,
+                decoration: InputDecoration(hintText: game.t(UiText.hostNameHint), isDense: true, counterText: ''),
+              ),
+            ),
+          ],
+        ),
+      ),
+      // اللي دخلوا بالكود (كل واحد كاتب اسمه)
+      if (phones.isEmpty)
+        Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text('📲 ${game.t(UiText.nobodyYet)}', style: small)),
+      for (final p in phones)
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: Brutal.box(borderWidth: 2, shadowOffset: const Offset(2, 2)),
+          child: Row(
+            children: [
+              const Text('📱 ', style: TextStyle(fontSize: 16)),
+              Expanded(child: Text(p.$2, style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.ink))),
+              IconButton(
+                tooltip: game.t(UiText.kick),
+                onPressed: () => game.kick(p.$1),
+                icon: Icon(Icons.close, color: AppColors.red, size: 20),
+              ),
+            ],
+          ),
+        ),
+      // لاعيبة من غير موبايل (اختياري)
+      for (var i = 0; i < _offline.length; i++)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _offline[i],
+                  maxLength: 24,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: game.t(UiText.offlinePlayers),
+                    counterText: '',
+                    isDense: true,
+                    filled: true,
+                    fillColor: AppColors.paper,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(Brutal.radius)),
+                  ),
+                ),
+              ),
+              IconButton(onPressed: () => setState(() => _offline.removeAt(i).dispose()), icon: Icon(Icons.close, color: AppColors.muted)),
+            ],
+          ),
+        ),
+      TextButton(
+        onPressed: () => setState(() => _offline.add(TextEditingController())),
+        child: Text(game.t(UiText.addOfflinePlayer), style: const TextStyle(fontWeight: FontWeight.w900)),
+      ),
+    ];
+  }
+
   void _start() {
+    if (game.multiDevice && game.inOnlineRoom) return _startMulti();
     // الاسم الفاضي يبقى "لاعب 1" وهكذا
     final names = [
       for (var i = 0; i < _controllers.length; i++)
@@ -119,12 +247,17 @@ class _SetupScreenState extends State<SetupScreen> {
                         const SizedBox(height: 20),
                         _logo(),
                         // القعدة الأونلاين مفتوحة من دلوقتي: اللاعيبة يدخلوا ويتكلموا وإنت بتجهز
-                        if (game.multiDevice && game.room != null) ...[const SizedBox(height: 8), _lobbyBox()],
+                        if (game.multiDevice && game.inOnlineRoom) ...[const SizedBox(height: 8), _lobbyBox()],
                         const SizedBox(height: 24),
-                        _sectionTitle(game.t(UiText.players), game.t(UiText.playersRange)),
-                        const SizedBox(height: 10),
-                        for (var i = 0; i < _controllers.length; i++) _playerField(i),
-                        _addButton(),
+                        // أكتر من موبايل: الأسامي من الموبايلات نفسها، وموبايل واحد: الهوست بيكتبها
+                        if (game.multiDevice && game.inOnlineRoom)
+                          ..._multiPlayers()
+                        else ...[
+                          _sectionTitle(game.t(UiText.players), game.t(UiText.playersRange)),
+                          const SizedBox(height: 10),
+                          for (var i = 0; i < _controllers.length; i++) _playerField(i),
+                          _addButton(),
+                        ],
                         const SizedBox(height: 26),
                         _sectionTitle(game.t(UiText.mode), null),
                         const SizedBox(height: 10),
@@ -218,7 +351,9 @@ class _SetupScreenState extends State<SetupScreen> {
         Text(title.toUpperCase(), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
         if (hint != null) ...[
           const SizedBox(width: 6),
-          Text(hint, style: TextStyle(color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w600)),
+          Flexible(
+            child: Text(hint, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
         ],
       ],
     );
