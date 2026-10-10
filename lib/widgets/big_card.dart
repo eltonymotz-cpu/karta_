@@ -92,11 +92,24 @@ class BigCard extends StatelessWidget {
                     ),
                   ),
                 // الإجابة: بتظهر للكل لما الهوست يكشفها (بحركة ناعمة)
+                // نمط بالفلوس: غرامة الكارت ده (اللي يخسره يدفعها)
+                if (card != null && game.coinsOn && game.currentRule?.cost != null)
+                  Positioned(
+                    bottom: w * 0.05 + shadow,
+                    left: w * 0.05,
+                    child: IgnorePointer(
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: w * 0.025, vertical: w * 0.008),
+                        decoration: Brutal.box(color: AppColors.yellow, borderWidth: 2, shadowOffset: const Offset(2, 2)),
+                        child: Text('💸 ${game.currentRule!.cost}', textDirection: TextDirection.ltr, style: rankStyle(size: w * 0.045)),
+                      ),
+                    ),
+                  ),
                 // الدور جوه الكارت (وزن وقافية، براندات...): مين عليه الدور دلوقتي
                 if (card != null && game.innerTurn != null && game.innerTurn! < game.players.length)
                   Positioned(
-                    bottom: w * 0.2 + shadow,
-                    left: w * 0.06,
+                    top: w * 0.13,
+                    left: w * 0.22,
                     right: w * 0.06 + shadow,
                     child: IgnorePointer(
                       child: Center(
@@ -510,14 +523,23 @@ class _CardFront extends StatelessWidget {
       style: rule.clapStyle,
       defaultText: game.t(UiText.clapNow),
       translate: game.t,
-      enabled: game.isHost || game.canClap,
-      overrideText: game.isViewer && game.iClapped ? game.t(UiText.clapTapped) : null,
+      enabled: game.clapNeedsEveryone ? (game.myPlayerIndex != null && !game.iClapped) : (game.isHost || game.canClap),
+      overrideText: game.iClapped ? game.t(UiText.clapTapped) : null,
     );
-    final String hint;
+    String hint;
     if (game.isViewer) {
       hint = game.myPlayerIndex == null ? game.t(UiText.pickYourSeatShort) : game.t(UiText.lastClapLoses);
     } else {
-      hint = game.room != null ? game.t(UiText.clapCloseHint) : game.t(UiText.lastClapLoses);
+      hint = game.clapNeedsEveryone
+          ? (game.myPlayerIndex == null ? game.t(UiText.pickYourSeatShort) : game.t(UiText.lastClapLoses))
+          : game.t(UiText.lastClapLoses);
+    }
+    // أكتر من موبايل: مين لسه ماصقّفش (الكارت مش هيتقفل غير لما الكل يصقّف)
+    if (game.clapNeedsEveryone && game.clapOpen) {
+      final waiting = [for (final p in game.clapWaitingFor) if (p < game.players.length) game.players[p].name];
+      final done = game.clapPlayers.length - waiting.length;
+      hint = '${game.t(fillText(UiText.clapProgress, {'done': done, 'total': game.clapPlayers.length}))}'
+          '${waiting.isEmpty ? '' : '\n${game.t(UiText.clapWaiting)}: ${waiting.join('، ')}'}';
     }
     return Column(
       children: [

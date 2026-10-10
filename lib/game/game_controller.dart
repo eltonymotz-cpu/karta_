@@ -373,7 +373,7 @@ class GameController extends ChangeNotifier {
   bool get iClapped => myPlayerIndex != null && clapTaps.any((t) => t.player == myPlayerIndex);
 
   /// موبايل اللاعب: ينفع أصقّف دلوقتي؟
-  bool get canClap => isViewer && clapOpen && phase == CardPhase.clapGo && myPlayerIndex != null && !iClapped;
+  bool get canClap => clapOpen && phase == CardPhase.clapGo && myPlayerIndex != null && !iClapped;
 
   /// الكارت الحالي ليه إجابة؟
   bool get hasAnswer => currentRule?.answer != null;
@@ -717,7 +717,17 @@ class GameController extends ChangeNotifier {
         notifyListeners();
         break;
       case CardPhase.clapGo:
-        // الهوست دايس على الكارت = التصفيق خلص: نقفل التسجيل ونروح لاختيار الخسران
+        // أكتر من موبايل: الهوست لاعب زي الباقيين، دوسته = تصفيقه هو.
+        // الكارت مابيتقفلش من أي حد: بيتقفل لوحده لما الكل يصقّف.
+        if (clapNeedsEveryone) {
+          final mine = myPlayerIndex;
+          if (mine != null) {
+            HapticFeedback.heavyImpact();
+            registerClap(mine);
+          }
+          break;
+        }
+        // موبايل واحد: الدوسة = التصفيق خلص ونختار الخسران (زي الأول)
         sound.play(Sfx.clap);
         HapticFeedback.heavyImpact();
         _closeClap();
@@ -1112,9 +1122,33 @@ class GameController extends ChangeNotifier {
     if (clapTaps.any((t) => t.player == player)) return false; // صقّف قبل كده
     clapTaps.add(ClapTap(player, nowMs));
     sound.play(Sfx.clap);
+    // الكل صقّف: التصفيق بيتقفل لوحده ويظهر الأول والأخير
+    if (clapNeedsEveryone && clapWaitingFor.isEmpty) {
+      _closeClap();
+      phase = CardPhase.choosing;
+    }
     notifyListeners();
     return true;
   }
+
+  /// أكتر من موبايل والهوست أو حد ماسك لاعب: التصفيق محتاج الكل يدوسوا
+  bool get clapNeedsEveryone => (room != null || onlineForTest) && clapPlayers.isNotEmpty;
+
+  /// للاختبارات: نعتبر إننا في قعدة أونلاين (من غير نت)
+  @visibleForTesting
+  bool onlineForTest = false;
+
+  /// اللاعيبة اللي لازم يصقّفوا: كل لاعب ليه موبايل متصل (والهوست لو اختار هو مين)
+  Set<int> get clapPlayers {
+    final now = nowMs;
+    return {
+      for (final e in claims.entries)
+        if (e.key < players.length && (e.value == deviceId || isViewer || now - (lobby[e.value]?.lastSeen ?? 0) < 50000)) e.key,
+    };
+  }
+
+  /// لسه مين ماصقّفش
+  Set<int> get clapWaitingFor => clapPlayers.difference({for (final t in clapTaps) t.player});
 
   /// قفل التصفيق: الترتيب بيتثبت وبيتحدد أول وآخر واحد
   void _closeClap() {
@@ -1511,19 +1545,28 @@ class GameController extends ChangeNotifier {
 
   /// موبايل اللاعب: "أنا اللاعب ده"
   void claimSeat(int index) {
-    if (!isViewer || index < 0 || index >= players.length) return;
+    if (index < 0 || index >= players.length) return;
     final owner = claims[index];
     if (owner != null && owner != deviceId) return; // حد تاني ماسكه
     myPlayerIndex = index;
-    room?.sendAction({'type': 'claim', 'player': index, 'device': deviceId});
+    if (isHost) {
+      // الهوست لاعب كمان (في التصفيق مثلاً): بيمسك اللاعب بتاعه على طول
+      claims.removeWhere((_, d) => d == deviceId);
+      claims[index] = deviceId;
+    } else {
+      room?.sendAction({'type': 'claim', 'player': index, 'device': deviceId});
+    }
     notifyListeners();
   }
 
   /// موبايل اللاعب: يغيّر اللاعب اللي هو ماسكه
   void releaseSeat() {
-    if (!isViewer) return;
     myPlayerIndex = null;
-    room?.sendAction({'type': 'release', 'device': deviceId});
+    if (isHost) {
+      claims.removeWhere((_, d) => d == deviceId);
+    } else {
+      room?.sendAction({'type': 'release', 'device': deviceId});
+    }
     notifyListeners();
   }
 

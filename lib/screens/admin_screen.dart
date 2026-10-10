@@ -265,6 +265,7 @@ class _RuleDraft {
   final descFr = TextEditingController();
   final promptAr = TextEditingController();
   final promptFr = TextEditingController();
+  final fine = TextEditingController(); // غرامة الكارت (في الأنماط اللي بالفلوس)
   RuleType type = RuleType.assign;
   bool silence = false;
   CardRule? original; // القاعدة الأصلية (عشان التصميم والإعدادات اللي مش في المحرر ده تفضل زي ما هي)
@@ -281,6 +282,7 @@ class _RuleDraft {
     promptFr.text = rule.prompt?.fr ?? '';
     type = rule.type;
     silence = rule.setsSilence;
+    fine.text = rule.cost?.toString() ?? '';
   }
 
   /// نحوّل الخانات لقاعدة (التصميم وباقي الإعدادات بتتنقل من القاعدة الأصلية زي ما هي)
@@ -296,13 +298,15 @@ class _RuleDraft {
       prompt: hasPrompt ? LText(promptAr.text.trim(), promptFr.text.trim()) : null,
       clearPrompt: !hasPrompt,
       setsSilence: silence,
+      cost: int.tryParse(fine.text.trim())?.clamp(0, 1000000),
+      clearCost: int.tryParse(fine.text.trim()) == null,
     );
   }
 
   bool get hasTitle => titleAr.text.trim().isNotEmpty || titleFr.text.trim().isNotEmpty;
 
   void dispose() {
-    for (final c in [emoji, titleAr, titleFr, descAr, descFr, promptAr, promptFr]) {
+    for (final c in [emoji, titleAr, titleFr, descAr, descFr, promptAr, promptFr, fine]) {
       c.dispose();
     }
   }
@@ -430,6 +434,45 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
     if (ref != null && mounted) _replaceImage(ref, uploaded: false);
   }
 
+  /// غرامات الكروت: خانة صغيرة لكل كارت (الـ 13 + الكروت الزيادة)
+  Widget _finesBox() {
+    Widget cell(String label, TextEditingController controller) => SizedBox(
+          width: 92,
+          child: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            decoration: InputDecoration(
+              labelText: label,
+              isDense: true,
+              hintText: '—',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(Brutal.radius)),
+            ),
+          ),
+        );
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: Brutal.box(color: AppColors.yellow.withValues(alpha: 0.35), borderWidth: 1.8, shadowOffset: Offset.zero),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('💸 ${game.t(UiText.finesTitle)}', style: const TextStyle(fontWeight: FontWeight.w900)),
+          Text(game.t(UiText.finesHint), style: TextStyle(fontSize: 11, color: AppColors.muted)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 10,
+            children: [
+              for (final rank in cardRanks) cell(rank, _drafts[rank]!.fine),
+              for (final x in _extras) cell(x.label.text.trim().isEmpty ? '★' : x.label.text.trim(), x.rule.fine),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   /// هل الكروت الزيادة سليمة؟ (ليها اسم وعنوان، ومفيش اسم متكرر أو زي كارت من الـ 13)
   bool _extrasValid() {
     final labels = <String>{};
@@ -534,6 +577,8 @@ class _ModeEditorScreenState extends State<ModeEditorScreen> {
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
+                      // غرامة كل كارت (بتظهر لما النمط يبقى بالفلوس)
+                      if (_money) _finesBox(),
                       // صورة النمط
                       Align(
                         alignment: AlignmentDirectional.centerStart,

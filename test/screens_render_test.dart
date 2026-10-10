@@ -16,6 +16,7 @@ import 'package:karta/screens/home_screen.dart';
 import 'package:karta/screens/results_screen.dart';
 import 'package:karta/screens/setup_screen.dart';
 import 'package:karta/theme.dart';
+import 'package:karta/data/game_modes.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +36,10 @@ void main() {
     'economy settings': (g) => EconomySettingsScreen(game: g),
     'wallet': (g) => Scaffold(body: WalletPanel(game: g)),
     'paused game': (g) => GameScreen(game: g..togglePause()),
+    'mode editor (money)': (g) {
+      customModes['cash'] = completeMode('classic').copyWith(money: true);
+      return ModeEditorScreen(game: g, modeId: 'cash');
+    },
   };
 
   for (final dark in [false, true]) {

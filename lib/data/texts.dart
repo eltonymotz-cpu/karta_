@@ -551,8 +551,8 @@ class UiText {
     'مقفول = بالنقط (عدد الكروت زي ما هو). مفتوح = كل لاعب بيبدأ برصيد، واللي ياخد كارت يدفع تمنه (التمن بيتحط لكل كارت من محرر الكروت).',
     'Ma2fool = bel no2at. Maftoo7 = kol la3eb byebda2 b raseed, w elly yakhod kart yedfa3 tamano.',
   );
-  static const cardCost = LText('تمن الكارت (في الأنماط اللي بالفلوس)', 'Taman el kart (fel anmat elly bel floos)');
-  static const cardCostHint = LText('اللي ياخد الكارت ده يدفع المبلغ ده. فاضي = حسب إعدادات الضريبة العامة.', 'Elly yakhod el kart yedfa3 el mablagh da.');
+  static const cardCost = LText('غرامة الكارت (في الأنماط اللي بالفلوس)', 'Gharamet el kart (fel anmat elly bel floos)');
+  static const cardCostHint = LText('اللي يخسر الكارت ده يدفع الغرامة دي. فاضي = حسب إعدادات الفلوس العامة.', 'Elly yekhsar el kart da yedfa3 el gharama di.');
   static const moneyOnlyNote = LText('النمط ده بالنقط: التمن مش هيتحسب غير لو فتحت "النمط ده بالفلوس" من تعديل النمط.', 'El namat da bel no2at.');
   static const passAroundLabel = LText('🔁 دور جوه الكارت', '🔁 Dor gowa el kart');
   static const passAroundHint = LText(
@@ -560,7 +560,7 @@ class UiText {
     'Le kroot zay wazn w 2afya: sahm 3al la3eb elly 3aleh el dor, wel host bey3addeeh lel ba3do b zorar.',
   );
   static const innerTurnOf = LText('👉 الدور على {name}', '👉 El dor 3ala {name}');
-  static const nextInner = LText('اللي بعده ◀', 'Elly ba3do ◀');
+  static const nextInner = LText('اللي بعده', 'Elly ba3do');
   static const prevInner = LText('▶ اللي قبله', '▶ Elly 2ablo');
   static const questionCard = LText('❓ كارت سؤال', '❓ Kart so2al');
   static const questionCardHint = LText(
@@ -569,4 +569,10 @@ class UiText {
   );
   static const tapToRevealAnswer = LText('👆 دوس تشوف الإجابة', '👆 Dos teshoof el egaba');
   static const lastClapResult = LText('👏 التصفيق اللي فات', '👏 El tasfee2 elly fat');
+
+  static const clapProgress = LText('👏 صقّفوا {done} من {total}', '👏 Sa22afo {done} men {total}');
+  static const clapWaiting = LText('لسه', 'Lessa');
+  static const fineLabel = LText('💸 غرامة', '💸 Gharama');
+  static const finesTitle = LText('غرامة كل كارت (اللي يخسر الكارت يدفعها)', 'Gharamet kol kart (elly yekhsar el kart yedfa3ha)');
+  static const finesHint = LText('فاضي = حسب إعدادات الفلوس العامة (5% من الرصيد).', 'Fady = 7asab e3dadat el floos el 3amma.');
 }

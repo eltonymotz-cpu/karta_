@@ -50,7 +50,8 @@ class GameScreen extends StatelessWidget {
                     if (!playing)
                       Expanded(child: _WaitingForHost(game: game))
                     else ...[
-                      if (game.isViewer) _ViewerBanner(game: game),
+                      // موبايل اللاعب، أو الهوست في أكتر من موبايل (هو كمان لاعب): إنت مين؟
+                      if (game.isViewer || game.room != null) _ViewerBanner(game: game),
                       _StatusChips(game: game),
                       if (!wide) ...[
                         const SizedBox(height: 6),
@@ -58,6 +59,30 @@ class GameScreen extends StatelessWidget {
                       ],
                       const SizedBox(height: 4),
                       Expanded(child: _Table(game: game)),
+                      // الهوست: نقل الدور جوه الكارت (وزن وقافية، براندات...) - تحت على اليمين
+                      if (game.isHost && game.innerTurn != null)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              textDirection: TextDirection.ltr,
+                              children: [
+                                SquareButton(onTap: () => game.moveInnerTurn(-1), child: Text(game.t(UiText.prevInner))),
+                                const SizedBox(width: 8),
+                                Pulse(
+                                  scale: 1.05,
+                                  child: SquareButton(
+                                    color: AppColors.orange,
+                                    onTap: () => game.moveInnerTurn(1),
+                                    child: Text('👉 ${game.t(UiText.nextInner)}', style: pixelStyle(size: 14)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       // الأزرار السريعة (إيموجي بيظهر في نص اللعبة عند الكل)
                       ReactionBar(game: game),
                     ],
@@ -439,10 +464,6 @@ class _StatusChips extends StatelessWidget {
           child: _chip(game.t(game.answerShown ? UiText.hideAnswer : UiText.showAnswer), AppColors.green),
         ),
       // الهوست: يحرّك الدور جوه الكارت (وزن وقافية، براندات...)
-      if (game.isHost && game.innerTurn != null) ...[
-        GestureDetector(onTap: () => game.moveInnerTurn(-1), child: _chip(game.t(UiText.prevInner), AppColors.paper)),
-        GestureDetector(onTap: () => game.moveInnerTurn(1), child: _chip(game.t(UiText.nextInner), AppColors.orange)),
-      ],
       // الكوينز: المحفظة (أرصدة، عمليات، تحويل، تحديات)
       if (game.coinsOn)
         GestureDetector(
